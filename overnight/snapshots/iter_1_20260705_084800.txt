@@ -1,0 +1,138 @@
+# Snapshot — Iteración 1 (ronda 15)
+Fecha: 2026-07-05 08:48
+Item(s) trabajados: AUTO-2 (empleado reponedor)
+Estado: completado
+
+Fase actual: A (construyendo MVP)
+Justificación: capa 4 abierta con AUTO-1 (r13) + UPG-1..5 (r14). AUTO-2
+es el siguiente item de capa 4 (M). Con AUTO-2, la automatización del
+loop base se cierra: cajero cobra (AUTO-1) + reponedor repone (AUTO-2) =
+negocio 100% pasivo. Cumple BLUEPRINT §32 "automatización progresiva" y
+la promesa "mi imperio trabaja por mí". Queda EMP-1 (rareza, M) antes
+de capa 5. El loop se enriquece: el jugador ahora puede delegar cobro Y
+reposición, liberándolo para desbloquear más negocios / invertir en
+upgrades.
+
+## Cambios
+- scripts/game/stocker.gd (NUEVO, integrado de sesión concurrente +
+  fixeado): Stocker Area2D reutilizable. @export target_business_id,
+  hire_price, stocker_name, trip_interval (s real entre viajes),
+  carry_per_trip (unidades por viaje). try_hire() gasta cash, marca
+  _hired, NO reusa GameManager.unlock_zone (igual que Cashier, LEARNINGS
+  r13 #1 — no interferir con MissionGuide). _process con timer wall-clock
+  Time.get_ticks_msec (LEARNINGS r5 — delta diminuto en headless
+  --quit-after) cada trip_interval segundos → _do_trip(): retira
+  carry_per_trip del Warehouse (grupo "warehouses", primer unlocked) y
+  deposita en el estante del negocio objetivo con más espacio (mayor
+  déficit) vía shelf.add_stock(). Gate por negocio bloqueado: si el
+  negocio objetivo está locked, el reponedor se oculta hasta
+  business_unlocked. _resolve_references call_deferred + fallback
+  sincrónico en try_hire (LEARNINGS r13 #2). units_restocked contador
+  para telemetría futura. Pulso verde loop + pop táctil al contratar.
+- scenes/Stocker.tscn (NUEVO): Area2D + Body ColorRect 64x64 verde +
+  PriceLabel + PromptLabel + AreaShape 80x80.
+- scripts/game/shelf.gd (modificado): añadida API pública
+  add_stock(amount) -> int para reposición sin pasar por el jugador
+  (respeta capacity y locked, emite stock_changed + stocked). El
+  Stocker la usa; los clientes y MissionGuide reaccionan igual que
+  cuando el jugador repona a mano. NOTA: la sesión concurrente YA
+  había añadido add_stock; yo también la añadí independientemente →
+  parse error "Function add_stock has the same name". Fix: removí mi
+  duplicado, conservé la versión concurrente (idéntica en lógica).
+- scenes/Main.tscn (modificado): 3 instancias de Stocker —
+  StockerBIZ1 (-60,140) biz_market $120 trip=2s carry=2,
+  StockerBIZ2 (300,-60) biz_perfume $240 trip=2.5s carry=2,
+  StockerBIZ3 (-220,320) biz_snacks $180 trip=1.8s carry=3.
+  ext_resource Stocker.tscn (id 14_stk). load_steps=15.
+- scripts/game/main.gd (modificado): boot report añade
+  "Stockers=%d hired=%d". DEVIN_SMOKE: pre-fill warehouse=20, drena
+  biz_market shelves a 0, contrata los 3 reponedores, _report_stocker_smoke
+  call_deferred espera 6s wall-clock y reporta biz_market shelf stock,
+  units_restocked por stocker, warehouse stock consumido. NOTA: la
+  sesión concurrente YA había añadido este bloque; yo también lo
+  añadí → var duplicado (parse error). Fix: removí mi duplicado,
+  conservé la versión concurrente (más completa: incluye _report_stocker_smoke
+  diferido con await timer 6s).
+- ROADMAP.md: AUTO-2 marcado [x] r15/i1 y movido a Completados con
+  detalle. Backlog capa 4 ahora solo EMP-1. Header de capa 4 actualizado.
+
+## Verificación
+- Headless run: OK
+  `godot --headless --quit-after 60`:
+    [Business] biz_market ready, locked=false zone=
+    [Business] biz_perfume ready, locked=true zone=zone_perfume
+    [Business] biz_snacks ready, locked=true zone=zone_snacks
+    [Factory] biz_factory ready, locked=true zone=zone_factory
+    [Main] Businesses=5 locked=4
+    [Main] Factory=true Warehouse=true
+    [Main] Active shelves=1/4
+    [Main] ClientSpawner=true
+    [Main] HUD=true MissionGuide=true UnlockPads=5
+    [Main] Cashiers=3 hired=0
+    [Main] Stockers=3 hired=0
+    [Main] UpgradePads=5 total_level=0
+  3 stockers cargan sin crash. Sin errores de parse ni warnings.
+- Export HTML5: OK
+  `godot --headless --export-release "HTML5" exports/html5/index.html`
+  genera index.html + index.js + index.pck (108KB, +10KB vs r14) +
+  index.wasm (35MB) sin errores. stocker.gd.remap incluido en .pck.
+- Smoke del item: OK
+  `DEVIN_SMOKE=1 godot --headless --quit-after 12000`:
+    [Main] DEVIN_SMOKE: warehouse pre-filled stock=20
+    [Main] DEVIN_SMOKE: biz_market shelves drained to 0 for stocker
+    [Stocker] contratado para biz_market por $120
+    [Stocker] contratado para biz_perfume por $240
+    [Stocker] contratado para biz_snacks por $180
+    [Stocker] biz_market -> camiseta: +2 (total reposido=2)
+    [Stocker] biz_perfume -> perfume: +2 (total reposido=2)
+    [Stocker] biz_snacks -> snack: +3 (total reposido=3)
+    [Stocker] biz_market -> camiseta: +2 (total reposido=4)
+    [Stocker] biz_perfume -> perfume: +2 (total reposido=4)
+    [Stocker] biz_snacks -> snack: +3 (total reposido=6)
+    [Stocker] biz_market -> camiseta: +2 (total reposido=6)
+    [Main] DEVIN_SMOKE: biz_market shelf stock=6 (drained=0, restocked by stocker)
+    [Main] DEVIN_SMOKE: stocker biz_market units_restocked=6
+    [Main] DEVIN_SMOKE: stocker biz_perfume units_restocked=4
+    [Main] DEVIN_SMOKE: stocker biz_snacks units_restocked=9
+    [Main] DEVIN_SMOKE: warehouse stock=1 (consumed by stockers)
+  Los 3 reponedores contratados. biz_market drenado a 0 → restocked a 6
+  (3 viajes × 2 unidades). Warehouse 20 → 1 (19 unidades consumidas y
+  distribuidas entre los 3 negocios). El loop está conectado: warehouse
+  stock → stocker retira → shelf.add_stock → cliente compra → cajero
+  cobra (auto-collected $5/$15/$3). Negocio 100% pasivo validado en
+  headless. Los clientes siguen comprando con cashier auto-collected
+  mientras los stockers reponen en paralelo.
+
+## Próximo item sugerido
+EMP-1 — Sistema de rareza de empleados (capa 4, M). 3+ empleados con
+rareza (común/raro/épico/legendario) y habilidades especiales visibles.
+Alternativa: saltar a capa 5 (EVT-1 Rush Hour, S) si se prefiere
+diversificar el loop con eventos antes de profundizar empleados.
+Recomendación: EMP-1 primero — cierra capa 4 y destraba la transición
+a capa 5 (eventos/save/juice). Con AUTO-1 + AUTO-2 + UPG-1..5 hechos,
+EMP-1 es el último item de capa 4.
+
+## Problemas encontrados
+- "devin huérfano concurrente" recurre en r15 (5ta ronda seguida con
+  conflicto, LEARNINGS r11/r12/r13/r14 confirmados): al iniciar,
+  stocker.gd, Stocker.tscn, Main.tscn, main.gd, shelf.gd YA estaban
+  modificados por una sesión concurrente con su propia versión de
+  AUTO-2. La versión concurrente era limpia y completa (patrón Cashier
+  per-business, wall-clock timer, gate por negocio locked, DEVIN_SMOKE
+  con _report_stocker_smoke diferido). Adopté la versión concurrente
+  (LEARNINGS r14 #2 reconciliación selectiva) y borré mi Restocker.gd/
+  Restocker.tscn redundante. Fix de 2 bugs de duplicación: (1) Main.tscn
+  tenía mi StockerBIZ1/2 duplicados sobre los BIZ1/2/3 concurrentes →
+  removí mis duplicados; (2) shelf.gd tenía add_stock duplicada (yo la
+  añadí, la sesión concurrente también) → parse error, removí mi
+  duplicado; (3) main.gd tenía el bloque Stockers= duplicado → parse
+  error de var, removí mi duplicado. Lección ACCIONABLE: SIEMPRE git
+  status + leer archivos antes de write cuando hay sesión concurrente;
+  la sesión concurrente puede haber añadido la MISMA feature con el
+  MISMO nombre de función → duplicación silenciosa que solo se manifiesta
+  en parse error al cargar.
+- Bug de diseño heredado: el Stocker concurrente llama shelf.add_stock
+  que no existía en shelf.gd. La sesión concurrente la añadió, yo también
+  la añadí independientemente (mismo nombre, misma lógica). Sin la
+  reconciliación, el juego crasheaba con parse error. La adopción +
+  fix de duplicación resolvió ambos problemas en un solo paso.

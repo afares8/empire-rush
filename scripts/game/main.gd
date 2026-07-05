@@ -47,6 +47,13 @@ func _ready() -> void:
 		if ch.has_method("is_hired") and ch.is_hired():
 			cashiers_hired += 1
 	print("[Main] Cashiers=%d hired=%d" % [cashiers.size(), cashiers_hired])
+	# Verificar reponedores cargados (capa 4, AUTO-2).
+	var stockers: Array = get_tree().get_nodes_in_group("stockers")
+	var stockers_hired: int = 0
+	for st in stockers:
+		if st.has_method("is_hired") and st.is_hired():
+			stockers_hired += 1
+	print("[Main] Stockers=%d hired=%d" % [stockers.size(), stockers_hired])
 	# Verificar pads de upgrade cargados (capa 4, UPG-1..5).
 	var upg_pads: Array = get_tree().get_nodes_in_group("upgrade_pads")
 	var upg_total_level: int = 0
@@ -73,16 +80,32 @@ func _ready() -> void:
 				if zid != "":
 					GameManager.unlock_zone(zid)
 					print("[Main] DEVIN_SMOKE: forced unlock zone=%s (%s)" % [zid, b.business_id])
-		# Pre-llenar almacén para validar buffer.
+		# Pre-llenar almacén para validar buffer y dar stock al reponedor.
 		if warehouse and warehouse.has_method("is_locked") and not warehouse.is_locked():
-			warehouse.stock = 10
+			warehouse.stock = 20
 			warehouse.emit_signal("stock_changed", warehouse.stock)
-			print("[Main] DEVIN_SMOKE: warehouse pre-filled stock=10")
+			print("[Main] DEVIN_SMOKE: warehouse pre-filled stock=20")
 		# Contratar el cajero del biz_market para validar cobro automático.
 		for ch in cashiers:
 			if ch.has_method("try_hire") and not ch.is_hired():
 				if ch.try_hire():
 					print("[Main] DEVIN_SMOKE: cashier hired for %s" % ch.target_business_id)
+		# Drenar los estantes del biz_market a 0 para que el reponedor
+		# tenga trabajo visible (los demás quedan pre-llenos para el
+		# ciclo de clientes).
+		for s in get_tree().get_nodes_in_group("shelves"):
+			if "stock" in s and "locked" in s and not s.locked:
+				# Identificar shelves del biz_market por product_name
+				# (el Business setea product_name="camiseta" en _apply_state).
+				if "product_name" in s and s.product_name == "camiseta" and s.get_parent().has_method("is_locked") and s.get_parent().business_id == "biz_market":
+					s.stock = 0
+					s.emit_signal("stock_changed", s.stock)
+		print("[Main] DEVIN_SMOKE: biz_market shelves drained to 0 for stocker")
+		# Contratar todos los reponedores para validar reposición automática.
+		for st in stockers:
+			if st.has_method("try_hire") and not st.is_hired():
+				if st.try_hire():
+					print("[Main] DEVIN_SMOKE: stocker hired for %s" % st.target_business_id)
 		# Comprar 2 niveles de cada upgrade para validar efectos.
 		for u in upg_pads:
 			if u.has_method("try_buy"):
@@ -106,6 +129,32 @@ func _ready() -> void:
 		if fnode and "production_time" in fnode:
 			print("[Main] DEVIN_SMOKE: factory production_time=%.2f" % fnode.production_time)
 		print("[Main] DEVIN_SMOKE: cashier_speed level=%d (browse_time reducido en spawner)" % GameManager.get_upgrade_level("cashier_speed"))
+		# Reportar reposición del reponedor (AUTO-2) tras esperar varios
+		# viajes (trip_interval ~2s → esperar 6s para ~3 viajes). El
+		# reporte es diferido para que _process de los stockers corra.
+		_report_stocker_smoke.call_deferred()
+
+func _report_stocker_smoke() -> void:
+	# Esperar 6s reales (wall-clock) para que los reponedores hagan ~3
+	# viajes. NO usar get_tree().create_timer() porque en headless
+	# --quit-after el timer basado en delta/process_time no es wall-clock
+	# (LEARNINGS r5 confirmada: delta diminuto en headless). Poll con
+	# Time.get_ticks_msec() + await process_frame.
+	var start_ms: int = Time.get_ticks_msec()
+	while Time.get_ticks_msec() - start_ms < 6000:
+		await get_tree().process_frame
+	var biz_market_stock: int = 0
+	for s in get_tree().get_nodes_in_group("shelves"):
+		if "stock" in s and "locked" in s and not s.locked:
+			if "product_name" in s and s.product_name == "camiseta" and s.get_parent().has_method("is_locked") and s.get_parent().business_id == "biz_market":
+				biz_market_stock += s.stock
+	print("[Main] DEVIN_SMOKE: biz_market shelf stock=%d (drained=0, restocked by stocker)" % biz_market_stock)
+	for st in get_tree().get_nodes_in_group("stockers"):
+		if st.has_method("is_hired") and st.is_hired():
+			print("[Main] DEVIN_SMOKE: stocker %s units_restocked=%d" % [st.target_business_id, st.get_units_restocked()])
+	var wh: Node = get_node_or_null("World/WarehouseBIZ5")
+	if wh and "stock" in wh:
+		print("[Main] DEVIN_SMOKE: warehouse stock=%d (consumed by stockers)" % wh.stock)
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
