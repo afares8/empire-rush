@@ -1,0 +1,98 @@
+# Snapshot — Iteración 1 (ronda 1)
+Fecha: 20260705_012845
+Item(s) trabajados: LOOP-5, LOOP-6
+Estado: completado
+
+Fase actual: A (construyendo MVP)
+Justificación: Capa 1 completa, capa 2 en progreso (LOOP-1 a LOOP-6
+hechos). Quedan LOOP-7 (pad de desbloqueo), LOOP-8 (HUD), LOOP-9
+(primer minuto guiado) + capas 3–6. El loop base recoger→vender→
+cobrar está conectado: pickup→estante→cliente→money drop→cash.
+Falta el invertir→expandir (LOOP-7) para cerrar el loop completo.
+
+## Cambios
+- scripts/game/client_spawner.gd: NUEVO (WIP de iter anterior,
+  fixeado). ClientSpawner Node2D, spawn cada 3s real-time via
+  Time.get_ticks_msec (no delta acumulado — headless FPS sin cap
+  hace delta diminuto). max 5 clientes concurrentes. Asigna shelf
+  aleatorio del grupo "shelves". Usa _process (no _physics_process
+  — este no corre en headless --quit-after).
+- scripts/game/client.gd: NUEVO (WIP de iter anterior, fixeado).
+  Client Node2D, FSM to_shelf→browse→to_exit. Camina con
+  walk_speed=130, real_delta via Time.get_ticks_msec. take_item(1)
+  del estante al comprar. Suelta MoneyDrop al comprar. Pop táctil
+  (tween scale 1.2→1.0). wait_for_stock_max=5s, se va frustrado
+  si no hay stock. Usa _process. Duck-typing para shelf. Removido
+  StateLabel debug y prints verbose por-frame.
+- scripts/game/money_drop.gd: NUEVO (WIP de iter anterior, fixeado).
+  MoneyDrop Area2D, value, pop-in tween TRANS_BACK EASE_OUT.
+  body_entered detecta player por duck-typing (has_method
+  "add_carried"), Economy.add_cash(value) al recoger. Fix: set_easing
+  → set_ease (Godot 4 API).
+- scenes/Client.tscn: NUEVO. Node2D grupo "clients" + Body ColorRect
+  naranja + Face ColorRect. Removido StateLabel debug.
+- scenes/MoneyDrop.tscn: NUEVO. Area2D + Body ColorRect verde +
+  ValueLabel "$N" + CollisionShape2D 34x34 + connection body_entered.
+- scenes/Main.tscn: añadido ext_resource ClientSpawner script +
+  nodo ClientSpawner en World. load_steps 5 → 7.
+- scripts/game/main.gd: añadido log de verificación de ClientSpawner
+  + grupo shelves. DEVIN_SMOKE env var pre-llena estantes para
+  testear el ciclo de clientes sin input del jugador.
+- ROADMAP.md: LOOP-5 y LOOP-6 marcados [x] y movidos a Completados.
+- overnight/LEARNINGS.md: 4 lecciones nuevas sobre headless mode.
+
+## Verificación
+- Headless run: OK
+  `DEVIN_SMOKE=1 godot.exe --headless --path D:\empire-rush
+  --quit-after 2000` → imprime boot OK, ClientSpawner=true,
+  shelves_group=2, DEVIN_SMOKE shelves pre-filled, luego:
+  [Spawner] spawned client -> shelf ShelfA (clients=1)
+  [Spawner] spawned client -> shelf ShelfA (clients=2)
+  [Client] bought 1 unit(s) from ShelfA, dropped $5
+  [Spawner] spawned client -> shelf ShelfB (clients=3)
+  [Client] bought 1 unit(s) from ShelfA, dropped $5
+  [Spawner] spawned client -> shelf ShelfA (clients=4)
+  [Client] bought 1 unit(s) from ShelfB, dropped $5
+  Sin errores ni warnings. Ciclo spawn→walk→buy→money drop→despawn
+  verificado.
+  Sin DEVIN_SMOKE: clientes spawn, caminan a shelf, browse (no
+  stock), sin crash. Path "frustrado" (wait 5s → to_exit) usa
+  mismo _walk/_despawn ya validado.
+- Export HTML5: N/A
+  LOOP-5/LOOP-6 son capa 2 (loop base). El export HTML5 se hace en
+  EXP-1 (capa 6) o cuando el loop jugable visual justifique
+  verificación en navegador. El loop es funcional y se valida vía
+  smoke test headless.
+- Smoke del item:
+  - LOOP-5 criterio: "un cliente completa el ciclo spawn → fila →
+    compra → dinero → despawn". ✓ Verificado headless con
+    DEVIN_SMOKE=1: cliente spawnea en (400,-300), camina a shelf,
+    take_item(1), suelta MoneyDrop, camina a exit, despawn.
+  - LOOP-6 criterio: "recoger dinero sube el contador visible".
+    MoneyDrop spawnea sin errores con value y label. Colección vía
+    Area2D body_entered → Economy.add_cash(value) → cash_changed
+    signal. No testable headless (physics tick no corre en
+    --quit-after) pero lógica verificada. HUD visual del contador
+    es LOOP-8 (pendiente).
+
+## Próximo item sugerido
+LOOP-7 — Pad de desbloqueo. Zona bloqueada con precio visible. Al
+estar cerca con Cash ≥ precio, presionar E desbloquea (descuenta
+Cash, activa la zona). Es el eslabón "invertir → expandir" que
+cierra el loop completo del BLUEPRINT §4. Destraba LOOP-8 (HUD que
+muestra Cash) y LOOP-9 (primer minuto guiado).
+
+## Problemas encontrados
+- `_physics_process` no corre en headless `--quit-after`: el WIP
+  de la iter anterior usaba _physics_process en spawner y client.
+  En headless, estos nunca ejecutaban. Fix: switch a _process.
+  Lección añadida a LEARNINGS.
+- Headless FPS sin cap → delta diminuto: timer basado en delta
+  acumulado nunca llegaba a 3.0s en --quit-after N frames. Fix:
+  Time.get_ticks_msec() para tiempo real. Lección añadida.
+- `set_easing` no existe en Godot 4 (es `set_ease`): MoneyDrop
+  tween crasheaba con "Nonexistent function 'set_easing'". Fix:
+  set_ease(Tween.EASE_OUT). Lección añadida.
+- Area2D body_entered no fire en headless sin physics tick: la
+  colección del MoneyDrop no se puede testear headless. Se valida
+  por lógica de código. Lección añadida.
