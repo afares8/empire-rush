@@ -87,7 +87,7 @@ function Stop-ProcessTree([int]$rootPid) {
     }
 }
 
-function Invoke-AutoMerge([int]$round, [string]$workDir, [string]$roundStartCommit) {
+function Invoke-AutoMerge([int]$round, [string]$workDir, [string]$roundStartCommit, [bool]$isFinetuneRound) {
     $origBranch   = "main"
     $branchCreated = $false
     $committed     = $false
@@ -195,7 +195,7 @@ Cambios acumulados de la ronda $round del overnight de Trade Empire Rush.
 ### Detalle
 - Ver \`overnight/snapshots/\` para el detalle de cada iteracion.
 - Ver \`overnight/LEARNINGS.md\` para las lecciones (ronda 5).
-$($round -eq $TotalRounds ? "- Ver ``overnight/FINAL_REPORT.md`` para el informe final de mejoras y proximos pasos." : "")
+$(if ($isFinetuneRound) { "- Ver ``overnight/FINAL_REPORT.md`` para el informe final de mejoras y proximos pasos." })
 ### Para revertir
 \`\`\`
 git revert -m 1 <merge-commit-sha>
@@ -242,7 +242,7 @@ Generated with [Devin](https://cli.devin.ai/docs)
                 & git checkout $origBranch 2>&1 | Out-Null
             }
         } catch {
-            Write-Host "  [AutoMerge] WARN: no se pudo restaurar $origBranch: $_"
+            Write-Host "  [AutoMerge] WARN: no se pudo restaurar $($origBranch): $_"
         }
         Pop-Location
     }
@@ -489,7 +489,7 @@ while ($true) {
                 Reset-FailedIteration -workDir $WorkDir
             }
         } else {
-            Write-Host "  [Fase 2] Ronda $i < $RoundsPerCycle: fine-tuning se salta (solo en la ultima ronda del ciclo)."
+            Write-Host "  [Fase 2] Ronda $i < $($RoundsPerCycle): fine-tuning se salta (solo en la ultima ronda del ciclo)."
         }
 
         # ---- Fase 3: auto-merge por PR ----
@@ -497,7 +497,7 @@ while ($true) {
             Write-Host ""
             Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] === Ronda $round - AUTO-MERGE ==="
             try {
-                Invoke-AutoMerge -round $round -workDir $WorkDir -roundStartCommit $roundStartCommit
+                Invoke-AutoMerge -round $round -workDir $WorkDir -roundStartCommit $roundStartCommit -isFinetuneRound $isLastOfCycle
             }
             catch {
                 Write-Host "  [AutoMerge] FALLO GRAVE: $_"
@@ -561,7 +561,7 @@ if (Test-Path $finalReport) {
     Write-Host ""
     Write-Host " >>> LEE overnight\FINAL_REPORT.md para el informe de mejoras y proximos pasos <<<" -ForegroundColor Yellow
 } else {
-    Write-Host " Informe final      : (no se genero — revisa el log del fine-tuning)" -ForegroundColor Yellow
+    Write-Host " Informe final      : (no se genero - revisa el log del fine-tuning)" -ForegroundColor Yellow
 }
 Write-Host "=========================================================="
 Write-Host "=========================================================="
