@@ -99,9 +99,14 @@ func _do_buy() -> void:
 		_state = "to_exit"
 		_update_target_for_state()
 		return
-	_spawn_money_drop(taken)
-	emit_signal("bought", product_value * float(taken))
-	print("[Client] bought %d unit(s) from %s, dropped $%d" % [taken, target_shelf.name, int(product_value * float(taken))])
+	# Usar el product_value del estante (configurado por el Business)
+	# si está disponible; si no, el del cliente.
+	var val: float = product_value
+	if "product_value" in target_shelf and target_shelf.product_value > 0.0:
+		val = target_shelf.product_value
+	_spawn_money_drop(taken, val)
+	emit_signal("bought", val * float(taken))
+	print("[Client] bought %d unit(s) from %s, dropped $%d" % [taken, target_shelf.name, int(val * float(taken))])
 	# Pop táctil al comprar.
 	var tw: Tween = create_tween()
 	tw.tween_property(_body, "scale", Vector2(1.2, 0.8), 0.07).set_trans(Tween.TRANS_SINE)
@@ -109,11 +114,11 @@ func _do_buy() -> void:
 	_state = "to_exit"
 	_update_target_for_state()
 
-func _spawn_money_drop(units: int) -> void:
+func _spawn_money_drop(units: int, val: float) -> void:
 	var drop_scn: PackedScene = preload("res://scenes/MoneyDrop.tscn")
 	var drop: Node = drop_scn.instantiate()
 	drop.position = position + Vector2(randf_range(-18.0, 18.0), 24.0)
-	drop.value = product_value * float(units)
+	drop.value = val * float(units)
 	get_parent().add_child(drop)
 
 func _despawn() -> void:

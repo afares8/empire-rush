@@ -23,7 +23,13 @@ func _ready() -> void:
 	_next_spawn_ms = Time.get_ticks_msec() + int(spawn_interval * 1000.0)
 
 func _refresh_shelves() -> void:
-	_shelves = get_tree().get_nodes_in_group("shelves")
+	# Filtrar shelves locked (negocios no desbloqueados, BIZ-2/3).
+	var all: Array = get_tree().get_nodes_in_group("shelves")
+	_shelves = []
+	for s in all:
+		if "locked" in s and s.locked:
+			continue
+		_shelves.append(s)
 
 func _process(_delta: float) -> void:
 	if Time.get_ticks_msec() >= _next_spawn_ms:
@@ -31,10 +37,10 @@ func _process(_delta: float) -> void:
 		_try_spawn()
 
 func _try_spawn() -> void:
+	# Refrescar siempre: negocios pueden desbloquearse mid-sesión.
+	_refresh_shelves()
 	if _shelves.is_empty():
-		_refresh_shelves()
-		if _shelves.is_empty():
-			return
+		return
 	var count: int = get_tree().get_nodes_in_group("clients").size()
 	if count >= max_clients:
 		return

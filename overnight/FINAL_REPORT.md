@@ -1,78 +1,75 @@
 # Trade Empire Rush — Informe Final del Overnight (rondas 6–10)
 
-> Fine-tuning ronda 10 (2026-07-05 07:50). Cubre las 5 rondas desde
-> el último fine-tuning (r5). El prompt template dice "5 rondas" —
-> este informe analiza las rondas 6 a 10 inclusive.
+> Generado por la sesión de fine-tuning de la ronda 10
+> (2026-07-05 07:52). Análisis honesto y crítico del estado real
+> del MVP después de 10 rondas de overnight automatizado (5 rondas
+> iniciales + 5 rondas post-primer-fine-tuning).
 
 ## Fase alcanzada
 
-- **Fase al final de la ronda 10**: **A (construyendo MVP)**.
-- **Justificación**: Capa 1 (GODOT-1/2/3), Capa 1.5 (EXP-1 export
-  HTML5) y Capa 2 (LOOP-1..9) están completas y commiteadas en r8.
-  Capa 3 (contenido MVP) se intentó en r9 (BIZ-1) y r10 (BIZ-1/2/3)
-  pero TODO el trabajo se perdió por el anti-patrón
-  `Reset-FailedIteration` del controller. El último commit real es
-  `5655653 overnight: ronda 8 iter 1 (WIP)`. No hay `business.gd` ni
-  `Business.tscn` en disco. La capa 3 está en 0% en git.
-- **¿Avanzó A → B → C correctamente?**: NO — se quedó en A. No
-  avanzó a B (pulido) porque ni siquiera cerró capa 3 (contenido).
-- **¿Se saltó la Fase B (pulido)?**: NO aplica — no llegó a B. Pero
-  el riesgo existe: si la próxima ronda salta a juice/eventos antes
-  de cerrar BIZ-1..5, estaría saltándose el contenido base (anti-
-  patrón "contenido antes del loop" invertido: "juice antes del
-  contenido").
+- **Fase al final de la ronda 10**: **A (construyendo MVP)** — capa 1
+  + capa 1.5 (export) + capa 2 completas; capa 3 al 0% en git.
+- **Justificación**: en git/main (HEAD = 26b7f48, merge de r8)
+  existen 13 items completados: GODOT-1..3, EXP-1, LOOP-1..9. No hay
+  `business.gd`, no hay `Business.tscn`, no hay 3 negocios. BIZ-1/2/3
+  se implementaron 2 veces (r9, r10) pero el controller las destruyó
+  ambas veces. Capas 4/5/6 al 0%. Fase B (pulido) al 0%.
+- **¿Avanzó A → B → C correctamente?**: NO — se quedó en Fase A.
+  Esto es correcto (no se saltó Fase B), pero el progreso dentro de
+  Fase A es lento: en 5 rondas post-fine-tuning solo 4 items nuevos
+  entraron a git (LOOP-7/8/9 + EXP-1, todos en r8).
+- **¿Se saltó la Fase B (pulido)?**: NO — no se llegó a Fase B. Pero
+  el loop actual NECESITA Fase B para ser adictivo (ver abajo).
 
 ## Estado del MVP
 
-### Lo que se construyó (commiteado en git, verificado)
+### Lo que se construyó (en git, verificado headless 2026-07-05 07:50)
 
-- **Capa 1 — Engine + proyecto base**: Godot 4.3 portable en
-  `godot/godot.exe`, `project.godot` válido, autoloads `Economy` +
-  `GameManager`, `Main.tscn` arranca sin crash.
-- **Capa 1.5 — Gate export HTML5**: `export_presets.cfg` (preset
-  "HTML5"), `exports/html5/index.html` + index.js (331KB) +
-  index.wasm (35MB) + index.pck (62KB). Export-release funciona sin
-  errores. Templates web instaladas en
-  `%APPDATA%/Godot/export_templates/4.3.stable/`.
+- **Capa 1 — Engine + proyecto base**: Godot 4.3 portable,
+  `project.godot` válido, autoloads `Economy`/`GameManager`, inputs
+  mapeados, `Main.tscn` arranca sin crash.
+- **Capa 1.5 — Gate export HTML5**: `export_presets.cfg` + templates
+  instaladas. `--export-release "HTML5"` genera `exports/html5/
+  index.html` (4.8KB) + index.js (331KB) + index.wasm (35MB) +
+  index.pck (62KB) sin errores. **El MVP es jugable en navegador.**
 - **Capa 2 — Loop base (9 items)**:
-  - LOOP-1: Player (CharacterBody2D, WASD, accel/friction, bob +
-    squash/stretch placeholder).
-  - LOOP-2: Cámara (GameCamera, smoothing exponencial + look-ahead).
-  - LOOP-3: Pickup (Area2D, stock regenera, recoger con E, carry
-    capacity 3, indicador visual CarriBox).
-  - LOOP-4: Shelf (Area2D, fill con E consume carried, API
-    take_item/has_stock, señal stock_changed).
-  - LOOP-5: Client (FSM to_shelf→browse→to_exit, suelta MoneyDrop)
-    + ClientSpawner (spawn cada 3s, max 5, asigna shelf aleatorio).
-  - LOOP-6: MoneyDrop (Area2D, value, pop-in tween, Economy.add_cash
-    al recoger).
-  - LOOP-7: UnlockPad (Area2D, zone_id, price, pulso amarillo,
-    prompt E, API try_unlock, señal unlocked).
-  - LOOP-8: HUD (CanvasLayer, CashLabel/EmpireLabel/MissionLabel,
-    pop de scale al cambiar cash).
-  - LOOP-9: MissionGuide (Node, 4 beats: FILL_SHELF→COLLECT_MONEY→
-    UNLOCK_ZONE→HIRE_HELP, avanza por señales, no bloquea input).
+  - LOOP-1: Player CharacterBody2D con WASD, accel/friction, bob +
+    squash/stretch placeholder.
+  - LOOP-2: Cámara con smoothing exponencial + look-ahead.
+  - LOOP-3: Pickup Area2D con stock regenerativo, carry capacity 3,
+    indicador visual "xN".
+  - LOOP-4: Shelf Area2D con stock/capacity, fill con E, API
+    `take_item()`/`has_stock()`.
+  - LOOP-5: Client FSM (to_shelf→browse→to_exit) + ClientSpawner
+    cada 3s real-time, max 5 concurrentes.
+  - LOOP-6: MoneyDrop Area2D con value, pop-in tween, Economy.
+    add_cash al recoger.
+  - LOOP-7: UnlockPad Area2D con zone_id, price, pulso amarillo,
+    prompt "E", API `try_unlock()`, señal `unlocked()`.
+  - LOOP-8: HUD CanvasLayer con CashLabel/EmpireLabel/MissionLabel,
+    pop de scale al cambiar cash.
+  - LOOP-9: MissionGuide con 4 beats (FILL_SHELF→COLLECT_MONEY→
+    UNLOCK_ZONE→HIRE_HELP), avanza por señales, no bloquea input.
 
-### Lo que NO se construyó (pendiente en ROADMAP)
+### Lo que NO se construyó
 
-- **Capa 3 — Contenido MVP**: BIZ-1 (puesto ropa), BIZ-2 (perfumes),
-  BIZ-3 (mini market), BIZ-4 (taller/fábrica), BIZ-5 (almacén).
-  BIZ-1/2/3 se implementaron 2 veces (r9, r10) pero se perdieron.
-- **Capa 4 — Automatización**: AUTO-1 (cajero), AUTO-2 (reponedor),
-  UPG-1..5 (upgrades), EMP-1 (rareza empleados).
-- **Capa 5 — Eventos + ranking + monetización + save + juice**:
-  EVT-1/2/3, RNK-1, MON-1/2, SAVE-1, OFF-1, JUICE-1/2.
-- **Capa 6 — Landing + métricas**: EXP-2 (landing), MET-1 (telemetría).
-- **Fase B — Pulido**: POLISH-1..10 (todos pendientes).
-- **Fase C — Versión 1.0+**: V1-1..23 (todos pendientes).
+- **Capa 3 — Contenido MVP**: BIZ-1/2/3/4/5 todos pendientes. Los 3
+  negocios (ropa/perfume/market) se implementaron 2 veces pero se
+  perdieron por el reset destructivo del controller.
+- **Capa 4 — Automatización**: AUTO-1/2, UPG-1..5, EMP-1 pendientes.
+- **Capa 5 — Eventos + ranking + monetización + save + juice**: EVT-
+  1/2/3, RNK-1, MON-1/2, SAVE-1, OFF-1, JUICE-1/2 pendientes.
+- **Capa 6 — Landing + métricas**: EXP-2, MET-1 pendientes.
+- **Fase B — Pulido**: POLISH-1..10 todos pendientes.
+- **Fase C — Versión 1.0+**: V1-1..23 todos pendientes.
 
 ### Export HTML5
 
 - **Estado**: OK
-- **Ruta**: `exports/html5/index.html`
-- **Verificado**: 2026-07-05 07:50 — headless `--quit-after 60` OK
-  (Player, 2 Pickups, 2 Shelves, ClientSpawner, HUD, MissionGuide,
-  2 Pads cargan sin crashes).
+- **Ruta**: `D:\empire-rush\exports\html5\index.html`
+- **Verificado**: 2026-07-05 07:50 (headless run OK, 2 pickups, 2
+  shelves, ClientSpawner, HUD, MissionGuide, 2 pads cargan sin
+  crashes).
 
 ### Cómo probarlo
 
@@ -80,281 +77,292 @@
 # Headless (valida boot sin crash)
 D:\empire-rush\godot\godot.exe --headless --path D:\empire-rush --quit-after 60
 
-# Smoke con DEVIN_SMOKE=1 (pre-llena estantes, da cash, desbloquea pad)
-$env:DEVIN_SMOKE=1; D:\empire-rush\godot.exe --headless --path D:\empire-rush --quit-after 60
+# Smoke con estantes pre-llenos + pad unlock
+$env:DEVIN_SMOKE=1
+D:\empire-rush\godot\godot.exe --headless --path D:\empire-rush --quit-after 60
 
-# Abrir en navegador (MVP jugable)
+# Export HTML5 (regenera el bundle)
+D:\empire-rush\godot\godot.exe --headless --path D:\empire-rush --export-release "HTML5" D:\empire-rush\exports\html5\index.html
+
+# Abrir en navegador (smoke visual manual)
 start D:\empire-rush\exports\html5\index.html
 
-# Re-exportar HTML5
-D:\empire-rush\godot\godot.exe --headless --path D:\empire-rush --export-release "HTML5" D:\empire-rush\exports\html5\index.html
+# Editor interactivo
+D:\empire-rush\godot\godot.exe --path D:\empire-rush
 ```
 
 ## ¿Es adictivo desde el primer minuto? (honesto)
 
-- **Loop se siente**: **PARCIAL**. El cimiento está conectado en
-  código (recoger→estante→cliente→dinero→recoger→pad→desbloquear)
-  y funciona en headless + navegador, pero le falta todo el "feel".
-- **Satisfacción táctil**: **MALA**. Recoger dinero no tiene
-  partículas ni sonido (solo un pop-in tween del MoneyDrop). El
-  cash no vuela al HUD. No hay screen shake al desbloquear. La
-  regla de oro del AGENTS.md ("satisfacción táctil al recoger
-  dinero") NO se cumple.
-- **Progreso visible**: **PARCIAL**. El HUD muestra cash/EV en
-  tiempo real, pero solo hay 1 negocio activo (ropa, $5) y 2 pads.
-  No hay sensación de "el imperio crece". Los pads tienen pulso
-  amarillo pero no glow fuerte.
-- **Meta cercana siempre visible**: **PARCIAL**. MissionGuide
-  muestra texto guía, pero el 4to beat (HIRE_HELP) no tiene
-  empleado real. Solo 2 pads ($50, $120) — después de desbloquear
-  los 2, no hay meta cercana visible.
+- **Loop se siente**: **PARCIAL** — la mecánica está conectada en
+  código (recoger→estante→cliente→dinero→recoger→pad→desbloquear),
+  hay HUD, hay mission guide, hay export. Pero le falta todo el
+  "feel": juice, contenido, balance, validación visual en navegador.
+- **Satisfacción táctil**: **MALA** — recoger dinero no tiene
+  partículas, no tiene sonido, no tiene fly-to-HUD. El MoneyDrop
+  solo tiene un pop-in tween. Sin audio. Esto viola la regla de oro
+  del AGENTS.md ("satisfacción táctil: recoger dinero debe tener
+  feedback visual + sonoro inmediato").
+- **Progreso visible**: **PARCIAL** — el HUD muestra cash/EV en
+  tiempo real con pop de scale, pero no hay progreso visual del
+  negocio (no hay estantes más grandes, no hay más clientes
+  visibles, no hay tienda más bonita). Solo 1 negocio placeholder.
+- **Meta cercana siempre visible**: **PARCIAL** — hay 2 pads de
+  desbloqueo con precio visible y pulso amarillo, pero no hay
+  indicador de "próximo pad alcanzable" en el HUD (POLISH-5
+  pendiente). El mission guide muestra el beat actual pero no la
+  meta cercana cuantitativa.
 - **Primer minuto (§25)**:
-  - 0–10s "Llena tu primer estante": **PARCIAL** — el texto aparece
-    pero el jugador debe descubrir que hay que ir al Pickup, recoger
-    con E, ir al Shelf, llenar con E. Sin flechas ni highlight.
+  - 0–10s "Llena tu primer estante": **PARCIAL** — el mission guide
+    lo muestra, pero recoger producto y llenar estante requiere
+    entender E en rango. Sin tutorial visual claro.
   - 10–20s "Recoge tu dinero": **PARCIAL** — el cliente suelta
-    MoneyDrop, pero sin partículas ni sonido el feedback es débil.
-  - 20–35s "Invierte para crecer": **OK** — el pad tiene pulso +
-    prompt E + precio visible. Es lo mejor del loop actual.
-  - 35–60s "Contrata ayuda": **FAIL** — no hay empleado (AUTO-1
-    pendiente). El beat HIRE_HELP queda colgado.
-- **Cómo se siente (§26)**: **LENTO y MONÓTONO**. Con 1 negocio y
-  clientes cada 3s, no hay caos. "Cada 10 segundos pasa algo" se
-  cumple a medias (llega un cliente, suelta dinero) pero sin juice
-  no se siente satisfactorio. "Cada 1 minuto desbloquea algo" SÍ se
-  cumple (pad $50 alcanzable en ~1 min).
-- **Qué es adictivo (§32)**: **Dinero visible** SÍ (MoneyDrop
-  físico + HUD). **Desbloqueo constante** PARCIAL (solo 2 pads).
-  **Progreso visual inmediato** NO (sin partículas, sin cambios
-  visuales al mejorar). **Automatización** NO. **Eventos** NO.
-- **Qué cansa (§33)**: **Repetición excesiva** — con 1 negocio el
-  loop es recoger→estante→esperar cliente→recoger dinero, sin
-  variación. **Todo se ve igual** — placeholders ColorRect sin
-  diferenciación visual entre negocios (porque solo hay 1).
-- **Veredicto**: **"Necesita 3–5 rondas más de pulido + contenido
-  en X"**. El MVP NO es adictivo todavía. El cimiento es sólido
-  (código limpio, headless-safe, export verde) pero le falta:
-  (1) contenido (3 negocios + taller + almacén), (2) juice
-  (partículas, sonido, fly-to-HUD, screen shake), (3) empleados
-  (para cerrar el 4to beat del primer minuto), (4) balance. NO
-  lanzar todavía.
+    MoneyDrop, el mission guide lo dice, pero sin fly-to-HUD el
+    jugador puede no conectar "recoger dinero" con "cash sube".
+  - 20–35s "Invierte para crecer": **OK** — el pad de desbloqueo
+    está visible con precio, el mission guide lo indica.
+  - 35–60s "Contrata ayuda": **ROTO** — el 4to beat del mission
+    guide es HIRE_HELP pero no hay empleados (capa 4 pendiente).
+    El beat queda colgado. Debería cambiarse a "Desbloquea el
+    segundo negocio" hasta que AUTO-1 exista.
+- **Cómo se siente (§26)**:
+  - ¿Rápido? PARCIAL — el player se mueve bien, pero sin contenido
+    el mapa se siente vacío.
+  - ¿Satisfactorio? NO — sin juice, recoger dinero es un evento
+    silencioso.
+  - ¿Cada 10s pasa algo? PARCIAL — los clientes spawnean cada 3s,
+    pero sin feedback el "algo" no se siente.
+  - ¿Cada 1min desbloquea algo? DEPENDE — el primer pad ($50) es
+    alcanzable en ~1min si el jugador optimiza, pero sin balance
+    no está claro.
+- **Qué es adictivo (§32)**:
+  - Progreso visual inmediato: NO (sin juice, sin crecimiento
+    visual del negocio).
+  - Metas cortas/medianas/largas: PARCIAL (pads = meta corta, EV
+    = meta larga, pero no hay meta mediana clara).
+  - Dinero visible: PARCIAL (hay MoneyDrop físico + HUD, pero sin
+    fly-to-HUD ni sonido).
+  - Desbloqueo constante: NO (solo 2 pads, después no hay nada).
+  - Automatización progresiva: NO (capa 4 al 0%).
+  - Competencia aspiracional: NO (sin ranking).
+  - Eventos sorpresa: NO (sin eventos).
+- **Qué cansa (§33)**:
+  - Repetición excesiva: SÍ — con solo 1 negocio y sin eventos, el
+    loop es monótono después de 2 min.
+  - Progreso demasiado lento: RIESGO — sin balance, podría ser
+    demasiado lento o demasiado rápido.
+  - Todo se ve igual: SÍ — solo ColorRects placeholder, sin
+    variedad visual entre negocios.
+- **Veredicto**: **"Necesita 3–5 rondas más de pulido + contenido,
+  CON el controller arreglado"**. El cimiento es sólido (código
+  limpio, headless-safe, export verde) pero el MVP no es adictivo
+  hoy. La brecha más grande es: (1) contenido (BIZ-1/2/3), (2) juice
+  (JUICE-1/POLISH-1/2), (3) validación de feel en navegador. Y por
+  encima de todo: (0) el controller debe dejar de destruir trabajo.
 
 ## Cómo puedo mejorar el MVP (recomendaciones accionables)
 
-Ordenadas por impacto/esfuerzo (impacto en adicción/retención):
+> Ordenadas por impacto/esfuerzo. Las primeras 3 son de proceso
+> (sin ellas, el resto no se completa nunca).
 
-1. **Re-hacer BIZ-1/2/3 (3 negocios) en 1 iteración** — El patrón
-   `Business` (Node2D contenedor con product_value, start_locked,
-   unlock_zone_id) ya está validado en r10 log. 3 negocios rompen
-   la monotonía y dan desbloqueo constante. — **Esfuerzo: S** (1
-   iter, ya hecho 2 veces).
-2. **FIX del controller (commit WIP cada 10 min + timeout 90 min)**
-   — Sin esto, toda iteración futura se pierde. Es el bloqueante
-   #1. — **Esfuerzo: S** (fix de `session.ps1`/`run_overnight.ps1`).
-3. **JUICE-1: partículas + sonido al recoger dinero** — La regla
-   de oro del AGENTS.md. Es lo que más impacta la "satisfacción
-   táctil". Sonido placeholder + 5 partículas + tween scale. —
-   **Esfuerzo: S**.
-4. **POLISH-2: tween de cash volando al HUD al recoger** — Refuerza
-   "dinero visible" (§32.3). El jugador ve de dónde viene el cash. —
-   **Esfuerzo: S**.
-5. **AUTO-1: empleado cajero** — Cierra el 4to beat del primer
-   minuto (HIRE_HELP). La transición "yo trabajo → mi imperio
-   trabaja" (§32.5) es lo que engancha a mediano plazo. —
-   **Esfuerzo: M**.
-6. **BIZ-4: mini taller/fábrica** — Añade la mecánica de producción
-   (materia prima → máquina → producto). Rompe la repetición de
-   solo recoger/vender. — **Esfuerzo: M**.
-7. **POLISH-6: balance de precios** — Ajustar para meta corta cada
-   1–2 min (§32.2). Hoy $50 y $120 son alcanzables rápido pero sin
-   curva exponencial. — **Esfuerzo: S**.
-8. **POLISH-4: glow/pulso fuerte en pads de desbloqueo** — Los pads
-   son la meta cercana visible (§32.2). Hoy tienen pulso amarillo
-   débil. Un glow fuerte + escala pulsante los hace irresistibles. —
-   **Esfuerzo: S**.
-9. **SAVE-1: guardado local** — Sin save, el jugador pierde todo al
-   cerrar. `user://save.json` vía FileAccess. — **Esfuerzo: S**.
-10. **EVT-1: evento "Rush Hour" (60s, 2x clientes)** — Eventos
-    sorpresa (§32.7) rompen la monotonía. 60s de caos controlado. —
-    **Esfuerzo: S**.
-11. **POLISH-7: spawn rate de clientes ajustado** — Hoy 1 cada 3s
-    es lento. Para "caos" en segundo 35–60 necesita 2x o 3x. —
-    **Esfuerzo: S**.
-12. **RNK-1: ranking simple local (30 bots)** — Competencia
-    aspiracional (§32.6). Ver a otros "jugadores" con Empire Value
-    más alto motiva. — **Esfuerzo: M**.
-13. **UPG-1: upgrade de velocidad del jugador** — Primera mejora
-    permanente visible. Refuerza "progreso visual inmediato" (§32.1). —
-    **Esfuerzo: S**.
-14. **BIZ-5: mini almacén** — Conecta el loop con logística básica.
-    Donde se acumula stock antes de mover a estantes. — **Esfuerzo: S**.
-15. **POLISH-1: feedback visual + sonoro al llenar estante** —
-    Llenar un estante hoy no tiene feedback. Un pop + sonido al
-    llenar refuerza el loop recoger→estante. — **Esfuerzo: S**.
+1. **FIX-CONTROLLER: commitear WIP cada 10 min + done-marker desde
+   el prompt + timeout 90 min + taskkill devin.exe al inicio + git
+   reset al inicio de cada ronda** — Sin esto, cada ronda pierde el
+   trabajo. Es el blocker #1. Esfuerzo: **S** (1 sesión manual de
+   edición de session.ps1/run_overnight.ps1). Impacto: **CRÍTICO**
+   (destraba todo lo demás).
+2. **Re-hacer BIZ-1/2/3 (3 negocios) siguiendo la abstracción
+   `Business` de r10** — Ya está diseñado y validado 2 veces. Con
+   el controller arreglado, 1 iteración lo cierra. Impacto: alto
+   (variedad visual + meta mediana). Esfuerzo: **S**.
+3. **JUICE-1: partículas + sonido placeholder + fly-to-HUD al
+   recoger dinero** — Es lo que más impacta la "satisfacción
+   táctil" de la regla de oro. Sin esto, recoger dinero se siente
+   vacío. Impacto: alto (adictivo). Esfuerzo: **S**.
+4. **POLISH-2: tween de cash volando al HUD** — Refuerza "dinero
+   visible" (§32.3). Impacto: medio-alto. Esfuerzo: **S**.
+5. **POLISH-3: screen shake suave al desbloquear zona** — Hace que
+   el desbloqueo se sienta impactante. Impacto: medio. Esfuerzo:
+   **S**.
+6. **POLISH-4: glow/pulso en pads de desbloqueo** — Ya existe pulso
+   amarillo, pero un glow más rico llama más la atención. Impacto:
+   medio. Esfuerzo: **S**.
+7. **POLISH-5: indicador de "meta cercana" en el HUD** — "Próximo
+   pad: $50 / faltan $20". Mantiene la meta siempre visible (§32.2).
+   Impacto: medio-alto (retención). Esfuerzo: **S**.
+8. **POLISH-6: balance de precios** — Ajustar para que el primer
+   pad se alcance en ~1min, el segundo en ~3min, etc. Meta corta
+   cada 1–2min. Impacto: alto (evita "progreso demasiado lento"
+   §33.2). Esfuerzo: **S**.
+9. **POLISH-7: spawn rate de clientes ajustado** — Caos controlado:
+   ni vacío ni abrumador. Impacto: medio. Esfuerzo: **S**.
+10. **BIZ-4: mini taller/fábrica** — Materia prima → máquina →
+    producto → estante. Primera mecánica de producción (no solo
+    recoger/vender). Impacto: alto (variedad, evita repetición
+    §33.1). Esfuerzo: **M**.
+11. **BIZ-5: mini almacén** — Conecta fábrica con estantes.
+    Impacto: medio. Esfuerzo: **S**.
+12. **AUTO-1: empleado cajero** — Cobra automáticamente. Primera
+    automatización (§32.5). Impacto: alto (transición "yo trabajo
+    → mi imperio trabaja"). Esfuerzo: **M**.
+13. **SAVE-1: guardado local** — Sin save, el jugador pierde todo
+    al cerrar. Impacto: alto (retención día 1). Esfuerzo: **S**.
+14. **Fix del 4to beat del MissionGuide** — Cambiar HIRE_HELP a
+    "Desbloquea el segundo negocio" hasta que AUTO-1 exista. Sin
+    esto, el primer minuto queda colgado. Impacto: medio. Esfuerzo:
+    **S**.
+15. **Smoke en navegador manual** — Abrir `index.html`, jugar 60s,
+    validar §25. Hoy nadie lo ha hecho. Impacto: alto (validación
+    real). Esfuerzo: **S** (humano, no AI).
 
 ## Qué más puedo hacer (roadmap a versión 1.0 y más allá)
 
 ### Versión 1.0 (post-MVP) — Fase C
 
-Cerrar el MVP primero (BIZ-1..5 + AUTO-1/2 + JUICE-1 + SAVE-1 +
-EVT-1 + RNK-1 + EXP-2 + balance + smoke visual en navegador). Luego:
-
-- **V1-1: Farmacia** (negocio nuevo, §8 Negocio 3) — cuidado
-  personal, vitaminas ficticias, higiene, belleza.
-- **V1-2: Electrónica** (§8 Negocio 5) — celulares, audífonos,
-  consolas ficticias, tablets.
-- **V1-3: Fábrica avanzada** (§8 Negocio 6 expandido) — materia
-  prima → máquina → caja → camión.
-- **V1-4: Bodega + logística + camión** (§8 Negocio 7) — cajas,
-  pallets, camiones, rutas.
-- **V1-5: Puerto + contenedores** (§6 Etapa 5) — llegada de
-  contenedores, descarga, distribución.
-- **V1-6: Segunda ciudad** (§6 Etapa 7) — sucursales, gerentes
-  regionales, logística inter-ciudad.
-- **V1-7: Ligas semanales completas** (§10) — 8 ligas, 30–50
-  jugadores, premios semanales.
-- **V1-8: Sistema de estatus/títulos** (§11) — 9 títulos que
-  desbloquean ropa/oficina/vehículos.
-- **V1-9: Personalización del personaje** (§12).
-- **V1-10: Empleados premium** (§13, §30 D) — cajero rápido, gerente
-  experto, influencer, etc.
-- **V1-14: Monetización real IAP** (§30 A–H) — gems, remove ads,
-  starter pack.
-- **V1-15: Ads recompensados reales (AdMob)**.
-- **V1-16: Daily Login + Daily Missions + Weekly Goals** (§38).
-- **V1-17: Eventos globales** (§36) — Global Trade Fair, Black
-  Friday Rush, Factory Madness.
-- **V1-21: Export Android (APK/AAB) + Google Play Console**.
-- **V1-22: Export iOS + App Store Connect**.
-- **V1-23: Guardado en la nube** (sync entre dispositivos).
+- **V1-1 a V1-23** del ROADMAP (ya listados): farmacia, electrónica,
+  fábrica avanzada, bodega + camiones, puerto, segunda ciudad,
+  ligas semanales, estatus/títulos, personalización, empleados
+  premium, skins, pase de temporada, cofres transparentes, IAP
+  real, ads reales, daily login, eventos globales, logros, fatiga
+  + reenganche, perfil público, export Android/iOS, cloud save.
+- **Prioridad recomendada post-MVP**: SAVE-1 (retención) → AUTO-1/2
+  (automatización) → RNK-1 (competencia aspiracional) → EVT-1/2
+  (eventos sorpresa) → MON-1 (ads recompensados placeholder) →
+  V1-21 (Android) → V1-14 (IAP real) → V1-22 (iOS).
 
 ### Versión 2.0
 
-- Farmacia + electrónica + fábrica avanzada + puerto + contenedores
-  (si no se cerraron en 1.0).
-- Segunda ciudad + clanes + visitar imperios + eventos globales.
-- Empleados raros + skins premium + IA para eventos diarios (§18).
-- Suscripción VIP opcional (§30 H).
-- Mall / centro comercial (§8 Negocio 8) — comprar locales, rentar.
+- Farmacia (negocio nuevo).
+- Electrónica (negocio nuevo).
+- Fábrica avanzada + puerto + contenedores.
+- Segunda ciudad + logística inter-ciudad.
+- Clanes/conglomerados + visitar imperios.
+- Eventos globales + empleados raros + skins premium.
+- IA para eventos diarios (§18).
 
 ### Versión 3.0
 
-- Países (Dubai, Tokio, Miami, París, Panamá, Estambul — §6 Etapa 8).
+- Países (Dubai, Tokio, Miami, París, Panamá, Estambul, etc.).
+- Mall / centro comercial (comprar locales, rentar).
 - Bienes raíces + franquicias.
 - Ranking mundial avanzado + ligas + temporadas por país.
-- Conglomerados (clanes) + colaboración entre jugadores.
+- Conglomerados + colaboración entre jugadores.
 - Personalización avanzada de marca.
 
 ### Lanzamiento mobile (Android/iOS)
 
-Pasos concretos una vez cerrado el MVP web:
-
-1. **Export presets Android**: en Godot, crear preset "Android"
-   (platform Android). Requiere Android SDK + JDK + keystore.
-2. **Keystore**: generar con `keytool -genkey -v -keystore
-   empire.keystore -alias empire -keyalg RSA -keysize 2048
-   -validity 10000`. Guardar seguro (NO commitear).
-3. **Google Play Console**: cuenta de desarrollador ($25 una vez).
-   Subir AAB (Android App Bundle, no APK) a Play Console Internal
-   Testing → Closed Testing → Open Testing → Production.
-4. **App Store Connect**: cuenta Apple Developer ($99/año). Subir
-   IPA vía Xcode/Transporter o App Store Connect API. Requiere
-   macOS para firmar.
-5. **IAP (in-app purchases)**: Godot no tiene IAP nativo → usar
-   plugin `GodotGooglePlayBilling` (Android) + `GodotAppleIap`
-   (iOS). Configurar productos en Play Console / App Store Connect.
-6. **Ads reales**: integrar AdMob vía plugin Godot (ej:
-   `Poing-Studios/admob`). Solo recompensados al inicio (§30.1).
-7. **Ranking real**: backend simple (Firebase / Supabase) para
-   sync de Empire Value entre dispositivos. Empezar con
-   Realtime Database (free tier).
-8. **Login**: Google Play Games Services (Android) + Game Center
-   (iOS) para auth sin fricción. O Firebase Auth anónimo + upgrade
-   a email/Google.
-9. **Cloud save**: sync de `user://save.json` a Firebase/Supabase.
-   Conflict resolution: last-write-wins al inicio, luego merge por
-   timestamp.
-10. **Comunidad**: empezar con ranking global + perfiles públicos
-    (§34). Clanes (§34 Conglomerates) en 2.0+.
-11. **Store listings**: screenshots, icono, descripción ASO
-    (App Store Optimization), video trailer. Apto para todas las
-    edades (PEGI 3 / Everyone) — sin violencia, sin apuestas, sin
-    contenido adulto (§16).
-12. **Soft launch**: lanzar en 1–2 países pequeños (ej: Panamá,
-    Uruguay) para medir retención D1/D7/D30 antes de global.
+1. **Export presets**:
+   - Android: instalar Android Build System en Godot, configurar
+     `keystore` (debug + release), `export_presets.cfg` con
+     package name `com.tuempresa.empirerush`, min SDK 24, target
+     SDK 34. `--export-release "Android" empire-rush.apk` (o .aab
+     para Play Store).
+   - iOS: macOS requerido para export. Configurar bundle ID,
+     provisioning profile, certificados. `--export-release "iOS"
+     empire-rush.ipa`. Sin macOS, usar CI (GitHub Actions con
+     macos-latest).
+2. **Google Play Console** ($25 USD una vez):
+   - Crear app, llenar ficha (descripción, screenshots, icono).
+   - Subir .aab a internal testing → closed testing → open testing
+     → production.
+   - Política de datos (data safety), política de contenido
+     (aptó para todos), EULA.
+   - Configurar IAP con Google Play Billing (V1-14).
+   - Configurar AdMob para ads recompensados (V1-15).
+3. **App Store Connect** ($99 USD/año, requiere Mac):
+   - Crear app, llenar ficha, screenshots por dispositivo.
+   - Subir .ipa via Transporter o Xcode.
+   - TestFlight (beta) → review → production.
+   - Configurar IAP con StoreKit (V1-14).
+   - Configurar ads via AdMob o SKAdNetwork.
+4. **Ranking + login**:
+   - Google Play Games Services (Android) / Game Center (iOS) para
+     ranking nativo + login sin fricción.
+   - O backend propio (Supabase/Firebase) para ranking cross-plataforma
+     + cloud save (V1-23).
+5. **Cloud save**: Supabase/Firebase, sync de `save.json` por user
+   ID. Conflict resolution: last-write-wins o merge por timestamps.
+6. **Comunidad**: Discord, Reddit, formulario de feedback in-app.
+   Mensajes predefinidos (§17) para social sin riesgo.
 
 ## Métricas a medir desde el día 1
 
-Según BLUEPRINT §23. Implementar con telemetría local (MET-1,
-consola) primero, luego remote (Firebase Analytics / Mixpanel):
+> BLUEPRINT §23. Implementar como telemetría local (MET-1) primero,
+> luego analytics service (Firebase/Amplitude) en mobile.
 
-- **Tutorial completion** (MissionGuide DONE step): % de jugadores
-  que llegan a HIRE_HELP. Meta: >80%.
-- **Tiempo de primera sesión**: timestamp al entrar + al salir.
-  Meta: >8 min.
-- **Sesiones por día**: count de opens por día (requiere SAVE-1).
-- **Retención D1/D3/D7**: % de jugadores que vuelven día 1/3/7.
-  Meta: D1 >35%, D7 >10%.
-- **Ads vistos por usuario activo/día**: count de ads recompensados
-  vistos. Meta: mínimo 3.
-- **Compras por usuario** (post-IAP): ARPU.
-- **Nivel donde abandonan**: último beat de MissionGuide alcanzido
-  + último negocio desbloqueado. Identifica fricción.
-- **Zonas más desbloqueadas**: count de unlocks por zone_id.
-- **Eventos más jugados**: count de EVT-1/2/3 completados.
-- **Empleados más usados**: count de contrataciones por empleado.
-
-Implementación: un singleton `Metrics` (autoload) que loguea a
-`user://metrics.json` + `print()` en consola. Cada evento llama
-`Metrics.track("event_name", payload)`. En 1.0+, subir a backend.
+- **Tutorial completion**: % de jugadores que completan el primer
+  minuto (MissionGuide DONE). Meta: >80%. Implementación: flag en
+  save.json + log al completar.
+- **Tiempo de primera sesión**: segundos desde boot hasta primer
+  quit. Meta: >480s (8min). Implementación: timestamp boot + quit
+  en save.json.
+- **Sesiones por día**: contador por día calendario. Implementación:
+  array de fechas en save.json.
+- **Retención día 1/3/7**: % de jugadores que vuelven N días después
+  del primer boot. Implementación: comparar fecha primer boot vs
+  fecha sesiones posteriores.
+- **Ads vistos por usuario activo al día**: contador de MON-1
+  boosts activados. Meta: ≥3. Implementación: log al activar boost.
+- **Compras por usuario**: contador de IAP (V1-14). Implementación:
+  log al completar compra.
+- **Nivel donde abandonan**: zona/negocio máximo desbloqueado al
+  último boot. Implementación: max(zone_unlocked) en save.json.
+- **Zonas más desbloqueadas**: ranking de zone_id por frecuencia.
+  Implementación: log al unlock.
+- **Eventos más jugados**: ranking de event_id por frecuencia.
+  Implementación: log al completar evento.
+- **Empleados más usados**: ranking de employee_id por tiempo
+  activo. Implementación: log al contratar + al despedir.
 
 ## Riesgos y mitigaciones
 
-- **Riesgo #1 — Controller destruye trabajo (CRÍTICO)**: el
-  anti-patrón `Reset-FailedIteration` ha tirado ~270 min de compute
-  (r3/r4/r5 + r6/r9/r10). **Mitigación**: fixear `session.ps1` para
-  commitear WIP cada 10 min + subir timeout a 90 min + `git reset`
-  solo al START de cada ronda (después de commitear WIP previo).
-  Sin este fix, el overnight es inútil.
-- **Riesgo #2 — Devin huérfano concurrente**: 3 devin.exe vivos
-  en r10 sobrescribiendo archivos. **Mitigación**: `taskkill //F
-  //IM devin.exe` al START de cada sesión.
-- **Riesgo #3 — MVP no es adictivo**: el loop funciona pero no
-  engancha. **Mitigación**: priorizar JUICE-1 + contenido (BIZ-1..5)
-  antes de features avanzadas. Smoke visual en navegador cada
-  iteración (no solo headless).
-- **Riesgo #4 — Saltar Fase B (pulido)**: tentación de ir a eventos
-  /ranking antes de pulir el feel. **Mitigación**: gate explícito:
-  no tocar capa 5 hasta que capa 3+4 estén cerradas Y el loop se
-  sienta bien en navegador (smoke manual humano).
-- **Riesgo #5 — Performance web**: el .wasm es 35MB. En mobile
-  web puede ser lento. **Mitigación**: medir FPS en navegador
-  de gama baja (ej: Chrome mobile emulation). Optimizar si <30 FPS.
-- **Riesgo #6 — Balance roto**: sin playtesting, los precios
-  ($50/$120) pueden ser muy fáciles o muy duros. **Mitigación**:
-  POLISH-6 + smoke manual midiendo tiempo al primer desbloqueo.
-- **Riesgo #7 — Sin save = sin retención**: el jugador pierde todo
-  al cerrar. **Mitigación**: SAVE-1 antes de lanzar.
-- **Riesgo #8 — Export mobile rompe el MVP**: añadir Android/iOS
-  puede romper el export web. **Mitigación**: mantener el preset
-  HTML5 verde en cada iteración, separar builds.
+- **Riesgo #1 — El controller destruye trabajo (CRÍTICO)**: 5
+  rondas perdidas acumuladas. Mitigación: aplicar FIX-CONTROLLER
+  antes de cualquier otra ronda. Sin esto, el overnight nunca
+  converge.
+- **Riesgo #2 — El loop no engancha en navegador**: todo el smoke
+  es headless, nadie validó el feel real. Mitigación: smoke
+  manual en navegador después de cada item de capa 3/Fase B.
+- **Riesgo #3 — Sin contenido, el loop es monótono**: solo 1
+  negocio placeholder. Mitigación: cerrar BIZ-1/2/3 antes de tocar
+  juice o capa 4.
+- **Riesgo #4 — Sin juice, la satisfacción táctil no existe**:
+  recoger dinero es silencioso. Mitigación: JUICE-1 + POLISH-2
+  son prioritarios después de BIZ-1/2/3.
+- **Riesgo #5 — Sin save, retención = 0**: el jugador pierde todo
+  al cerrar. Mitigación: SAVE-1 antes de lanzar a usuarios reales.
+- **Riesgo #6 — El 4to beat del MissionGuide está roto**: HIRE_HELP
+  sin empleados. Mitigación: cambiar a "Desbloquea el segundo
+  negocio" o implementar AUTO-1 primero.
+- **Riesgo #7 — Devin huérfano concurrente**: 3 devin.exe vivos
+  sobrescribiendo archivos. Mitigación: `taskkill //F //IM
+  devin.exe` al inicio de cada ronda.
+- **Riesgo #8 — Sin balance, el progreso se siente mal**: precios
+  sin tuning. Mitigación: POLISH-6 con playtest en navegador.
 
 ## Próximos pasos recomendados (esta semana)
 
-1. **FIX del controller** (bloqueante #1, no es item de ROADMAP):
-   editar `overnight/session.ps1` para commitear WIP cada 10 min +
-   `overnight/run_overnight.ps1` para timeout 90 min + `git reset`
-   al START de cada ronda + `taskkill //F //IM devin.exe` al START.
-   Sin esto, la próxima ronda overnight perderá el trabajo otra vez.
-2. **Re-hacer BIZ-1/2/3** (1 iteración, patrón `Business` validado
-   en r10 log): 3 negocios (ropa $5, perfume $15, market $3) con
-   pickups/shelves hijos + reutilizar pads existentes como gate.
-3. **JUICE-1 + POLISH-2**: partículas + sonido placeholder al
-   recoger dinero + tween de cash volando al HUD. Es lo que más
-   impacta la "satisfacción táctil" de la regla de oro.
-4. **BIZ-4 (taller) + BIZ-5 (almacén)**: cerrar capa 3.
-5. **AUTO-1 (empleado cajero)**: cierra el 4to beat del primer
-   minuto (HIRE_HELP).
-6. **Smoke visual en navegador**: abrir `exports/html5/index.html`
-   y validar el primer minuto contra §25. Si no engancha, iterar
-   POLISH-6/7 (balance + spawn rate) antes de seguir.
+1. **Aplicar FIX-CONTROLLER** (manual, 1 sesión): editar
+   `overnight/session.ps1` y `overnight/run_overnight.ps1` para:
+   - `git add -A && git commit -m "WIP ronda N iter M"` cada 10 min
+     de trabajo (no solo al final).
+   - Done-marker escrito desde el prompt del devin (instrucción
+     explícita "al terminar, escribe $DEVIN_DONE_MARKER").
+   - Timeout subido a 90 min.
+   - `taskkill //F //IM devin.exe` al inicio de cada ronda.
+   - `git reset --hard HEAD && git clean -fd` al inicio de cada
+     ronda (después de commitear WIP de la anterior).
+   Commitear este fix como `fix(controller): preserve work across
+   timeouts`.
+2. **Correr 1 overnight de 5 rondas con el controller arreglado**:
+   objetivo = BIZ-1/2/3 + JUICE-1 + POLISH-2/3/5/6 (7 items). Con
+   el controller arreglado, 5 rondas × 1-2 iter = 5-10 iter
+   deberían cerrar todo esto.
+3. **Smoke manual en navegador**: abrir `exports/html5/index.html`,
+  jugar 60s, validar §25 (primer minuto). Anotar qué se siente mal.
+4. **Decidir: ¿pulir más (Fase B) o lanzar MVP soft?**: después del
+  overnight de paso 2, evaluar si el loop engancha. Si sí, lanzar
+  soft (compartir index.html con 5 amigos, medir tiempo de sesión).
+  Si no, otra ronda de pulido (POLISH-7/8/9/10 + balance).
+5. **Implementar SAVE-1 + MET-1** antes de cualquier lanzamiento
+  con usuarios reales (sin save, no hay retención; sin métricas,
+  no hay aprendizaje).

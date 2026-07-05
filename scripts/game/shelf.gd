@@ -14,6 +14,8 @@ signal stocked(amount: int)
 @export var product_name: String = "camiseta"
 
 var stock: int = 0
+var locked: bool = false
+var product_value: float = 5.0
 var _player_in_area: bool = false
 var _player: Node = null
 
@@ -46,6 +48,8 @@ func _on_body_exited(body: Node) -> void:
 func _on_player_interact() -> void:
 	if not _player_in_area or _player == null:
 		return
+	if locked:
+		return
 	if stock >= capacity:
 		return
 	if _player.carried <= 0:
@@ -63,8 +67,10 @@ func _on_player_interact() -> void:
 	tw.tween_property(_body, "scale", Vector2(1.0, 1.0), 0.1).set_trans(Tween.TRANS_SINE)
 
 # API para LOOP-5 (cliente): consume 1 unidad del estante.
-# Devuelve cuántas realmente tomó (0 si vacío).
+# Devuelve cuántas realmente tomó (0 si vacío o locked).
 func take_item(n: int = 1) -> int:
+	if locked:
+		return 0
 	var to_take: int = clamp(n, 0, stock)
 	if to_take <= 0:
 		return 0
@@ -77,10 +83,14 @@ func is_empty() -> bool:
 	return stock <= 0
 
 func has_stock() -> bool:
-	return stock > 0
+	return stock > 0 and not locked
 
 func _update_visual() -> void:
 	# Fill level: de rojo apagado (vacío) a verde brillante (lleno).
 	var ratio: float = float(stock) / float(capacity) if capacity > 0 else 0.0
+	if locked:
+		_body.color = Color(0.3, 0.3, 0.3, 0.4)
+		_stock_label.text = "LOCKED"
+		return
 	_body.color = Color(0.85 - 0.45 * ratio, 0.35 + 0.55 * ratio, 0.3, 0.55 + 0.45 * ratio)
 	_stock_label.text = "%d/%d" % [stock, capacity]
