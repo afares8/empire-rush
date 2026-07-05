@@ -1,8 +1,7 @@
 # MoneyDrop — dinero físico en el piso (loop base, LOOP-5/LOOP-6).
 # Soltado por el cliente al comprar. Recogible por el jugador al
 # caminar sobre él (auto-collect, sin E). Suma al Cash del Economy.
-# LOOP-6 añadirá juice (partículas, tween al HUD, sonido); aquí
-# solo cierra el loop estante → dinero → cash del jugador.
+# JUICE-1/POLISH-1/2: partículas + pop + cash volando al HUD + SFX.
 class_name MoneyDrop
 extends Area2D
 
@@ -26,5 +25,19 @@ func _is_player(body: Node) -> bool:
 func _on_body_entered(body: Node) -> void:
 	if not _is_player(body):
 		return
+	# Juice: partículas + cash volando + sonido + pop del body.
+	var pos: Vector2 = global_position
+	if Juice:
+		Juice.money_burst(pos)
+		Juice.fly_cash(pos, value)
+		Juice.play_pickup()
+	# Pop de scale antes de desaparecer para feel táctil.
+	var tw: Tween = create_tween()
+	tw.tween_property(_body, "scale", Vector2(1.6, 1.6), 0.08) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(_body, "modulate:a", 0.0, 0.08)
+	tw.tween_callback(_finish_collect)
+
+func _finish_collect() -> void:
 	Economy.add_cash(value)
 	queue_free()

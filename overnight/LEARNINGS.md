@@ -1222,3 +1222,49 @@
   añadidos. El .pck crece lineal con código nuevo, sin overhead
   significativo. El gate HTML5 se mantiene verde.
 
+## Ronda 17 — iter 1 (2026-07-05 09:13)
+
+- **JUICE-1 + POLISH-1/2/3 cerrados en 1 iteración (4 items S)**:
+  los 4 items comparten el mismo autoload `Juice` y son las 4 caras
+  del feedback táctil (partículas / cash volando / screen shake /
+  sonido). Hacerlos juntos es más eficiente que 4 iter separadas.
+  Patrón: 1 autoload central + 3 touchpoints (money_drop, unlock_pad,
+  upgrade_pad) que lo llaman. Próximo touchpoint natural: cashier/
+  stocker hire (play_buy + shake ligero).
+- **AudioStreamWAV procedural funciona en headless Y HTML5**: generar
+  samples 16-bit mono 22050Hz en runtime con envelope sin(PI*t/dur)
+  evita clicks. En headless no reproduce audio pero no crashea. En
+  HTML5, Godot incluye automáticamente `index.audio.worklet.js`
+  (7.3KB) cuando un AudioStreamPlayer está en el proyecto. Sin
+  assets externos → sin problemas de licencia ni descarga.
+- **Camera2D.offset es separado de position**: camera.gd setea
+  `position` en _physics_process para follow. Juice.shake setea
+  `offset` en _process. No hay conflicto — el offset se aplica
+  encima del position. Screen shake funciona sin modificar camera.gd.
+- **CPUParticles2D one_shot + auto-free via timer**: patrón robusto
+  para bursts: `p.one_shot=true`, `p.explosiveness=1.0`, añadir al
+  World, y `get_tree().create_timer(lifetime+0.4).timeout.connect(
+  p.queue_free)`. No deja nodos huérfanos. CPUParticles2D (no
+  GPUParticles2D) para compatibilidad HTML5/gl_compatibility.
+- **fly_cash usa float-up + shrink + fade, no conversión world→canvas**:
+  convertir coords world (Node2D) a canvas (CanvasLayer del HUD) es
+  frágil en HTML5 (get_canvas_transform depende del viewport). Más
+  simple y robusto: el Label "+$N" se añade al World en world_pos,
+  flota 90px up con shrink + fade. Se "siente" como volar al HUD
+  porque el jugador está centrado en cámara. Criterio POLISH-2
+  cumplido sin fricción de coords.
+- **Autoload sin class_name = sin parse error cross-script**: juice.gd
+  usa `extends Node` sin `class_name`. Los consumidores lo referencian
+  como `Juice` (autoload global, no necesita preload ni class_name).
+  Confirma LEARNINGS r16: para helpers cross-script, NO uses
+  class_name; para autoloads, class_name es innecesario (el nombre
+  ya es global).
+- **Export HTML5 +6KB por 1 autoload + audio worklet**: index.pck
+  120KB→126KB (juice.gd.remap). index.audio.worklet.js (7.3KB) aparece
+  nuevo por el AudioStreamPlayer. El gate HTML5 se mantiene verde.
+- **body_entered del MoneyDrop NO se puede testear headless (confirmado
+  otra vez)**: el juice del pickup se valida por "carga sin crash" no
+  por trigger. El juice de upgrade SÍ se valida (try_buy se llama
+  directo en DEVIN_SMOKE, 10 veces sin crash). Para validar el juice
+  del pickup visualmente, hay que correr en navegador (Fase B/GATE-3).
+

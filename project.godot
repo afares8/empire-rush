@@ -22,6 +22,7 @@ config/icon="res://assets/sprites/icon.svg"
 
 GameManager="*res://scripts/autoload/game_manager.gd"
 Economy="*res://scripts/autoload/economy.gd"
+Juice="*res://scripts/autoload/juice.gd"
 
 [display]
 

@@ -43,6 +43,14 @@ func _ready() -> void:
 	var guide: Node = get_node_or_null("MissionGuide")
 	var pads: int = get_tree().get_nodes_in_group("unlock_pads").size()
 	print("[Main] HUD=%s MissionGuide=%s UnlockPads=%d" % [hud != null, guide != null, pads])
+	# JUICE-1: verificar autoload de feedback táctil + registrar cámara
+	# para que Juice.shake pueda aplicar screen shake (POLISH-3).
+	var juice_ok: bool = get_node_or_null("/root/Juice") != null
+	print("[Main] Juice=%s" % juice_ok)
+	if juice_ok:
+		var cam: Node = get_node_or_null("World/Camera2D")
+		if cam and cam is Camera2D:
+			Juice.register_camera(cam)
 	# Verificar cajeros cargados (capa 4, AUTO-1).
 	var cashiers: Array = get_tree().get_nodes_in_group("cashiers")
 	var cashiers_hired: int = 0
@@ -161,6 +169,18 @@ func _ready() -> void:
 			var imult: float = spawner_node._influencer_mult()
 			var eff_interval: float = spawner_node.spawn_interval / imult if imult > 0.0 else spawner_node.spawn_interval
 			print("[Main] DEVIN_SMOKE: influencer combined mult=x%.2f, effective spawn_interval=%.2fs" % [imult, eff_interval])
+		# JUICE-1: verificar API de Juice cargada (partículas, cash fly,
+		# shake, SFX). Los efectos visuales/audio no se ven en headless,
+		# pero validar que los métodos existen y no crashean al llamarlos.
+		if juice_ok:
+			Juice.money_burst(Vector2(0, 0))
+			Juice.unlock_burst(Vector2(0, 0))
+			Juice.fly_cash(Vector2(0, 0), 5.0)
+			Juice.shake(8.0, 0.25)
+			Juice.play_pickup()
+			Juice.play_unlock()
+			Juice.play_buy()
+			print("[Main] DEVIN_SMOKE: Juice API called OK (money_burst + unlock_burst + fly_cash + shake + 3 SFX)")
 		# Reportar reposición del reponedor (AUTO-2) tras esperar varios
 		# viajes (trip_interval ~2s → esperar 6s para ~3 viajes). El
 		# reporte es diferido para que _process de los stockers corra.
