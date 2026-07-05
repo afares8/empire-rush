@@ -1,34 +1,44 @@
 # Camera — cámara top-down que sigue al jugador suavemente (LOOP-2).
-# Zoom out suficiente para ver el puesto + una zona bloqueada cercana.
-# Lerp suave para que el seguimiento se sienta cinemático, no rígido.
-class_name FollowCamera
+# Look-ahead en la dirección de movimiento para que el jugador vea hacia
+# dónde va. Zoom configurable para mostrar el puesto + zona bloqueada
+# cercana. Mucho feel: smoothing exponencial, no lineal, para que se
+# sienta cinematográfico sin lag perceptible.
+class_name GameCamera
 extends Camera2D
 
-@export var target_path: NodePath = ^""
-@export var follow_speed: float = 6.0  # mayor = más rígido
-@export var look_ahead: float = 60.0   # adelanta la cámara en la dir de movimiento
+@export var follow_speed: float = 6.0  # mayor = más reactivo
+@export var look_ahead: float = 70.0   # offset en dir de movimiento
+@export var look_ahead_speed: float = 4.0
+@export var zoom_target: Vector2 = Vector2(1.0, 1.0)
 
-var _target: Node2D = null
-var _desired_pos: Vector2 = Vector2.ZERO
+var _player: Node = null
+var _look_ahead_pos: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
-	if target_path != ^"":
-		_target = get_node_or_null(target_path)
-	if _target:
-		_desired_pos = _target.position
-		global_position = _desired_pos
-		make_current()
+	# Buscar al jugador por ruta relativa (Camera2D está en World/).
+	_player = get_node_or_null("../Player")
+	if _player == null:
+		push_warning("[Camera] Player no encontrado, cámara estática")
+	position_smoothing_enabled = false  # hacemos el smoothing a mano
+	zoom = zoom_target
 
 func _physics_process(delta: float) -> void:
-	if not _target or not is_instance_valid(_target):
-		return
-	# Look-ahead suave basado en facing/velocity del player si lo expone.
-	var ahead: Vector2 = Vector2.ZERO
-	if _target.has_method("get") and _target.get("velocity"):
-		var v: Vector2 = _target.velocity
+	if _player == null:
+		_player = get_node_or_null("../Player")
+		if _player == null:
+			return
+
+	# Look-ahead: offset en la dirección del facing/velocidad del jugador.
+	var desired_la: Vector2 = Vector2.ZERO
+	if "facing" in _player:
+		desired_la = Vector2(_player.facing) * look_ahead
+	elif "velocity" in _player:
+		var v: Vector2 = _player.velocity
 		if v.length() > 5.0:
-			ahead = v.normalized() * look_ahead
-	_desired_pos = _target.position + ahead
-	# Lerp exponencial (frame-rate independiente).
-	var t: float = 1.0 - exp(-follow_speed * delta)
-	global_position = global_position.lerp(_desired_pos, t)
+			desired_la = v.normalized() * look_ahead
+	_look_ahead_pos = _look_ahead_pos.lerp(desired_la, clampf(look_ahead_speed * delta, 0.0, 1.0))
+
+	var target: Vector2 = Vector2(_player.position) + _look_ahead_pos
+	# Smoothing exponencial (frame-rate independiente aprox).
+	var t: float = clampf(follow_speed * delta, 0.0, 1.0)
+	position = position.lerp(target, t)

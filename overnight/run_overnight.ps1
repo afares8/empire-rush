@@ -28,7 +28,7 @@ param(
     [int]$RoundsPerCycle          = 5,
     [int]$IterationsPerRound      = 1,
     [int]$PauseSeconds            = 30,
-    [int]$SessionTimeoutMinutes   = 90,
+    [int]$SessionTimeoutMinutes   = 45,
     [string]$WorkDir              = "D:\empire-rush",
     [string]$PromptFile           = "",
     [string]$FinetunePromptFile   = "",
