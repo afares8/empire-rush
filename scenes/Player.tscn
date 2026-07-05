@@ -1,9 +1,15 @@
-[gd_scene load_steps=2 format=3 uid="uid://player_scene_ter"]
+[gd_scene load_steps=3 format=3 uid="uid://player_scene_ter"]
 
 [ext_resource type="Script" path="res://scripts/game/player.gd" id="1_player"]
 
+[sub_resource type="RectangleShape2D" id="rect_body"]
+size = Vector2(28, 36)
+
 [node name="Player" type="CharacterBody2D"]
 script = ExtResource("1_player")
+
+[node name="BodyShape" type="CollisionShape2D" parent="."]
+shape = SubResource("rect_body")
 
 [node name="Shadow" type="ColorRect" parent="."]
 size = Vector2(34, 12)
@@ -22,3 +28,23 @@ offset_top = -34.0
 offset_right = 11.0
 offset_bottom = -16.0
 color = Color(0.95, 0.78, 0.62, 1)
+
+[node name="CarryBox" type="ColorRect" parent="."]
+visible = false
+offset_left = -8.0
+offset_top = -52.0
+offset_right = 8.0
+offset_bottom = -38.0
+color = Color(0.95, 0.82, 0.25, 1)
+
+[node name="CarryLabel" type="Label" parent="."]
+visible = false
+offset_left = 10.0
+offset_top = -56.0
+offset_right = 40.0
+offset_bottom = -40.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 12
+text = "x0"

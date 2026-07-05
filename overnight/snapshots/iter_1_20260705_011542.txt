@@ -1,0 +1,81 @@
+# Snapshot — Iteración 1 (ronda 2)
+Fecha: 20260705_011542
+Item(s) trabajados: LOOP-3
+Estado: completado
+
+Fase actual: A (construyendo MVP)
+Justificación: Capa 1 completa, capa 2 en progreso (LOOP-1, LOOP-2,
+LOOP-3 hechos). Quedan LOOP-4..LOOP-9 + capas 3–6. El loop base aún
+no está cerrado (no hay estante ni cliente ni dinero). Fuera de Fase B/C.
+
+## Cambios
+- scripts/game/player.gd: añadido `carry_capacity=3`, `carried`,
+  señal `carry_changed`, métodos `can_carry()`, `add_carried(n)`,
+  `remove_carried(n)`, `_update_carry_visual()`. Pop de scale del
+  CarryBox al recibir producto (feedback táctil). @onready refs a
+  CarryBox/CarryLabel.
+- scenes/Player.tscn: añadido `BodyShape` (CollisionShape2D +
+  RectangleShape2D 28x36) — NECESARIO para que Area2D detecte al
+  CharacterBody2D. Añadidos nodos `CarryBox` (ColorRect amarillo
+  sobre la cabeza) y `CarryLabel` (Label "xN" con outline negro).
+  load_steps 2 → 3.
+- scripts/game/pickup.gd: NUEVO. `class_name Pickup extends Area2D`.
+  Stock float que se regenera (regen_per_sec), recoger con E en rango
+  respeta carry_capacity del jugador. Duck-typing (`_is_player` vía
+  has_method) para evitar dependencia de class_name Player en parse
+  time. Pop táctil del body al recoger. StockLabel muestra
+  "stock/max". Color del body refleja ratio de stock.
+- scenes/Pickup.tscn: NUEVO. Area2D + Body ColorRect + StockLabel +
+  CollisionShape2D (RectangleShape2D 70x70). Conexiones
+  body_entered/body_exited al script.
+- scenes/Main.tscn: añadido ext_resource Pickup + 2 instancias
+  (PickupA en (-180,-120), PickupB en (160,100)). load_steps 4 → 5.
+- scripts/game/main.gd: log de verificación de pickups cargados.
+- ROADMAP.md: LOOP-3 marcado [x] y movido a `## Completados`.
+  Eliminada entrada stale duplicada (r3/i1) de un intento previo
+  no commiteado.
+
+## Verificación
+- Headless run: OK
+  `godot.exe --headless --path D:\empire-rush --quit-after 60` →
+  imprime "[Main] Trade Empire Rush — MVP boot" + "[Main] Player
+  spawned at (0, 0)" + "[Main] Pickups: PickupA=true PickupB=true"
+  sin errores ni warnings. 60 frames sin crash.
+- Export HTML5: N/A
+  LOOP-3 es capa 2 (loop base). El export HTML5 se hace en EXP-1
+  (capa 6) o cuando el loop jugable visual justifique verificación
+  en navegador. El pickup es funcional y se valida vía smoke test
+  headless.
+- Smoke del item:
+  - Criterio de cierre: "el jugador recoge producto y se ve el
+    contador".
+  - Smoke test headless (SceneTree script instanciando Player +
+    Pickup, simulando E via emit_signal("interact_pressed") y
+    await physics_frame):
+    * carried=1 tras 1 E en área ✓
+    * carried=3 tras 3 E (tope carry_capacity) ✓
+    * carried=3 tras 4to E (no over-cap) ✓
+    * remove_carried(2) → removed=2, carried=1 ✓
+    * E fuera de área (player en 500,500) → carried sigue 1 ✓
+  - Indicador visual: CarryBox + CarryLabel "xN" sobre la cabeza,
+    visibles solo cuando carried>0, con pop de scale al recoger.
+  - Stock del pickup se regenera con el tiempo (regen_per_sec=1.0).
+
+## Próximo item sugerido
+LOOP-4 — Estante/mostrador reponible. Al estar cerca con producto
+cargado, presionar E llena el estante (+1 stock, hasta capacity).
+Es el siguiente eslabón del loop y consume el `carried` del jugador
+(usando `remove_carried`). Destraba LOOP-5 (cliente que compra del
+estante).
+
+## Problemas encontrados
+- `class_name Player` no se resolvía en pickup.gd al parsear
+  ("Could not find type Player in the current scope"). Fix: duck-typing
+  vía has_method("can_carry")/has_method("add_carried"). Lección
+  añadida a LEARNINGS.
+- Player.tscn no tenía CollisionShape2D → Area2D no detectaba
+  body_entered. Fix: añadido BodyShape (RectangleShape2D 28x36).
+  Lección añadida a LEARNINGS.
+- `-s script.gd` NO carga autoloads (Economy no disponible → main.gd
+  fallaba al cargar). Para smoke tests de nodos del loop, instanciar
+  Player/Pickup directamente sin Main.gd. Lección añadida.

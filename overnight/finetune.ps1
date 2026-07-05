@@ -115,7 +115,7 @@ try {
 
         $lastLogSize = 0
         $lastActivity = Get-Date
-        $idleThreshold = 60
+        $idleThreshold = 120
 
         while ($job.State -eq 'Running') {
             Start-Sleep -Seconds 3
@@ -168,6 +168,19 @@ try {
             }
         } catch { }
         Remove-Job $job -Force -ErrorAction SilentlyContinue
+
+        # ---- Cleanup: matar procesos devin huerfanos del job ----
+        try {
+            Get-CimInstance Win32_Process -Filter "Name='devin.exe'" -ErrorAction SilentlyContinue |
+                Where-Object { $_.CommandLine -match 'prompt-file' } |
+                ForEach-Object {
+                    $parent = Get-Process -Id $_.ParentProcessId -ErrorAction SilentlyContinue
+                    if (-not $parent) {
+                        Write-Host "[Cleanup] Matando devin huerfano PID $($_.ProcessId) (parent ya muerto)"
+                        Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+                    }
+                }
+        } catch { }
     } catch {
         Write-Host "EXCEPCION ejecutando devin: $_"
         Write-Marker "CRASH: devin lanzo excepcion: $_"

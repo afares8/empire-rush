@@ -56,3 +56,27 @@
   reiniciar el contador de ronda. Siempre usar `DEVIN_OVERNIGHT_ROUND`
   / `DEVIN_OVERNIGHT_ITER` como fuente de verdad para el snapshot,
   no el número que dice el ROADMAP.
+
+## Ronda 2 (iter LOOP-3)
+
+- **`class_name` cross-script NO se resuelve al parsear en algunos
+  casos**: pickup.gd referenciaba `body is Player` pero Player
+  (definido en player.gd) no estaba en scope al parsear → "Could
+  not find type Player". Fix: duck-typing con `has_method(...)`.
+  Evita `is TypeName` entre scripts del proyecto cuando hay riesgo
+  de orden de carga; usa `has_method`/`get_class()`/nombre de nodo.
+- **CharacterBody2D SIN CollisionShape2D no dispara `body_entered`
+  en Area2D**: move_and_slide puede funcionar sin shape (o con
+  warning), pero Area2D no detecta al body. Para cualquier nodo que
+  deba ser detectado por Area2D (pickup, estante, pad), añadir
+  CollisionShape2D al prefab.
+- **`godot -s script.gd` NO carga autoloads**: Economy/GameManager
+  no existen en ese modo, así que cualquier script que los referencie
+  (como main.gd) falla al cargar. Para smoke tests de nodos del loop,
+  instanciar los `.tscn` directamente (Player, Pickup) sin Main.gd,
+  y usar `await physics_frame` (no `process_frame`) para señales
+  físicas como body_entered.
+- **`await physics_frame` > `await process_frame` para señales de
+  física**: body_entered/body_exited y move_and_slide se resuelven
+  en el step de física. process_frame puede no haber avanzado la
+  física todavía.

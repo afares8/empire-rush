@@ -320,7 +320,7 @@ function Invoke-Session([string]$script, [hashtable]$extraArgs, [string]$label, 
     Write-Host "[$($t0.ToString('HH:mm:ss'))] Abriendo ventana para $label (bypass, print)..."
 
     $procArgs = @(
-        "-NoExit",
+        "-NoExit",  # mantener ventana para revision (el job se limpia solo)
         "-ExecutionPolicy", "Bypass",
         "-NoProfile",
         "-File", $script

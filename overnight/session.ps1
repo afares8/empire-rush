@@ -114,7 +114,7 @@ try {
 
         $lastLogSize = 0
         $lastActivity = Get-Date
-        $idleThreshold = 60  # 60s sin output nuevo → asumir hung
+        $idleThreshold = 120  # 120s sin output nuevo → asumir hung (devin a veces tarda en arrancar)
 
         while ($job.State -eq 'Running') {
             Start-Sleep -Seconds 3
@@ -170,6 +170,24 @@ try {
             }
         } catch { }
         Remove-Job $job -Force -ErrorAction SilentlyContinue
+
+        # ---- Cleanup: matar procesos devin huerfanos del job ----
+        # Stop-Job/Remove-Job matan el PowerShell del job pero NO siempre
+        # matan a devin.exe (child process). Si devin se colgó (root cause
+        # original), sigue vivo consumiendo RAM y bloqueando sesiones
+        # futuras. Buscamos y matamos cualquier devin.exe con --prompt-file
+        # que sea hijo de un job PowerShell ya muerto.
+        try {
+            Get-CimInstance Win32_Process -Filter "Name='devin.exe'" -ErrorAction SilentlyContinue |
+                Where-Object { $_.CommandLine -match 'prompt-file' } |
+                ForEach-Object {
+                    $parent = Get-Process -Id $_.ParentProcessId -ErrorAction SilentlyContinue
+                    if (-not $parent) {
+                        Write-Host "[Cleanup] Matando devin huerfano PID $($_.ProcessId) (parent ya muerto)"
+                        Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+                    }
+                }
+        } catch { }
     } catch {
         Write-Host "EXCEPCION ejecutando devin: $_"
         Write-Marker "CRASH: devin lanzo excepcion: $_"

@@ -12,6 +12,10 @@ func _ready() -> void:
 		print("[Main] Player spawned at %s" % str(player.position))
 	else:
 		push_warning("[Main] Player node NOT found")
+	# Verificar pickups cargados (loop base, LOOP-3).
+	var pk_a: Node = get_node_or_null("World/PickupA")
+	var pk_b: Node = get_node_or_null("World/PickupB")
+	print("[Main] Pickups: PickupA=%s PickupB=%s" % [pk_a != null, pk_b != null])
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:

@@ -89,3 +89,40 @@ func _update_bob(delta: float) -> void:
 	var lean: float = cos(_bob_t) * 0.04
 	_body.scale.x = 1.0 + lean
 	_body.scale.y = 1.0 - lean
+
+# --- Carga de producto (loop base, LOOP-3) ---
+
+func can_carry() -> bool:
+	return carried < carry_capacity
+
+# Recibe n unidades del pickup. Devuelve cuántas realmente cargó
+# (respeta capacidad). Feedback táctil: pop del carry box.
+func add_carried(n: int) -> int:
+	var space: int = carry_capacity - carried
+	var to_add: int = clamp(n, 0, space)
+	if to_add <= 0:
+		return 0
+	carried += to_add
+	emit_signal("carry_changed", carried)
+	_update_carry_visual()
+	# Pop de scale al recibir producto para que se sienta táctil.
+	var tw: Tween = create_tween()
+	tw.tween_property(_carry_box, "scale", Vector2(1.25, 1.25), 0.07).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(_carry_box, "scale", Vector2(1.0, 1.0), 0.1).set_trans(Tween.TRANS_SINE)
+	return to_add
+
+# Descarga (para LOOP-4 estante). Devuelve cuántas soltó.
+func remove_carried(n: int) -> int:
+	var to_remove: int = clamp(n, 0, carried)
+	if to_remove <= 0:
+		return 0
+	carried -= to_remove
+	emit_signal("carry_changed", carried)
+	_update_carry_visual()
+	return to_remove
+
+func _update_carry_visual() -> void:
+	var has: bool = carried > 0
+	_carry_box.visible = has
+	_carry_label.visible = has
+	_carry_label.text = "x%d" % carried

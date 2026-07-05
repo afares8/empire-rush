@@ -42,11 +42,6 @@ lanzamiento.**
   sigue al jugador. `scripts/game/camera.gd` (GameCamera, smoothing
   exponencial + look-ahead en dir de movimiento, zoom configurable).
   Criterio: la cámara sigue al jugador suavemente.
-- [ ] **LOOP-3** (P0, M) — Producto recogible. Nodo "Pickup" en el
-  mapa (sprite placeholder). Al estar el jugador cerca y presionar
-  E (o auto-recoger por proximidad), el jugador "carga" 1 unidad.
-  Indicador visual sobre el jugador de cuánto carga. Criterio: el
-  jugador recoge producto y se ve el contador.
 - [ ] **LOOP-4** (P0, M) — Estante/mostrador reponible. Al estar
   cerca con producto cargado, presionar E llena el estante (+1
   stock, hasta capacity). Visual: el estante muestra fill level.
@@ -283,6 +278,16 @@ lanzamiento.**
   follow_speed=6, look-ahead=70px en dir de facing, zoom
   configurable). Asignada a Camera2D en `Main.tscn`. Headless run OK,
   player encontrado por la cámara sin warnings.
+- [x] **LOOP-3** (P0, M, r2/i1) — Producto recogible. `scripts/game/
+  pickup.gd` (Pickup Area2D, stock regenera con el tiempo, recoger
+  con E en rango, duck-typing para no depender de class_name) +
+  `scenes/Pickup.tscn` (Body ColorRect + StockLabel + CollisionShape
+  área 70x70). Player gana `carried`/`carry_capacity=3` + señal
+  `carry_changed` + indicador visual (CarryBox amarillo + CarryLabel
+  "xN" sobre la cabeza, con pop de scale al recoger). Añadido
+  BodyShape (RectangleShape2D 28x36) al Player para que Area2D lo
+  detecte. 2 pickups instanciados en Main.tscn. Smoke test OK:
+  recoger respeta capacidad, no recoge fuera de área.
 
 ---
 
