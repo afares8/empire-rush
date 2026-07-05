@@ -19,6 +19,10 @@ var product_value: float = 5.0
 # AUTO-1: si true, un cajero cubre este estante y los clientes pagan
 # directo al Economy (sin soltar MoneyDrop al piso).
 var has_cashier: bool = false
+# EMP-1: multiplicador de valor de venta aplicado por el cajero según
+# su rareza (1.0 sin cajero o cajero común). client._do_buy multiplica
+# el total por este valor cuando hay cajero.
+var cashier_value_mult: float = 1.0
 var _player_in_area: bool = false
 var _player: Node = null
 

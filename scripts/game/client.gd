@@ -111,9 +111,15 @@ func _do_buy() -> void:
 	var total: float = val * float(taken)
 	# AUTO-1: si el estante tiene cajero, el cobro es automático al
 	# Economy (sin MoneyDrop al piso). El jugador no necesita recoger.
+	# EMP-1: la rareza del cajero aplica un multiplicador de valor de
+	# venta (cashier_value_mult del estante, seteado por Cashier).
 	if target_shelf.has_method("has_cashier_service") and target_shelf.has_cashier_service():
-		Economy.add_cash(total)
-		print("[Client] bought %d unit(s) from %s, cashier auto-collected $%d" % [taken, target_shelf.name, int(total)])
+		var mult: float = 1.0
+		if "cashier_value_mult" in target_shelf:
+			mult = target_shelf.cashier_value_mult
+		var total_with_mult: float = total * mult
+		Economy.add_cash(total_with_mult)
+		print("[Client] bought %d unit(s) from %s, cashier auto-collected $%d (mult x%.2f)" % [taken, target_shelf.name, int(total_with_mult), mult])
 	else:
 		_spawn_money_drop(taken, val)
 		print("[Client] bought %d unit(s) from %s, dropped $%d" % [taken, target_shelf.name, int(total)])

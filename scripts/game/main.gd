@@ -2,6 +2,9 @@
 # Por ahora solo arranca el MVP. El loop se construye en capa 2.
 extends Node2D
 
+# EMP-1: preload para reportar rareza en DEVIN_SMOKE (LEARNINGS r2).
+const EmployeeRarity = preload("res://scripts/game/employee_rarity.gd")
+
 func _ready() -> void:
 	print("[Main] Trade Empire Rush — MVP boot")
 	# Semilla inicial de economía para que el jugador pueda moverse.
@@ -61,6 +64,23 @@ func _ready() -> void:
 		if u.has_method("get_level"):
 			upg_total_level += u.get_level()
 	print("[Main] UpgradePads=%d total_level=%d" % [upg_pads.size(), upg_total_level])
+	# EMP-1: reportar influencers cargados (capa 4, tercer tipo de empleado).
+	var influencers: Array = get_tree().get_nodes_in_group("influencers")
+	var influencers_hired: int = 0
+	for inf in influencers:
+		if inf.has_method("is_hired") and inf.is_hired():
+			influencers_hired += 1
+	print("[Main] Influencers=%d hired=%d" % [influencers.size(), influencers_hired])
+	# EMP-1: reportar rareza y habilidad de cada empleado en boot.
+	for ch in cashiers:
+		if ch.has_method("get_rarity_enum"):
+			print("[Main] cashier %s rarity=%s value_mult=%.2f" % [ch.target_business_id, EmployeeRarity.name_of(ch.get_rarity_enum()), ch.get_value_mult()])
+	for st in stockers:
+		if st.has_method("get_rarity_enum"):
+			print("[Main] stocker %s rarity=%s trip=%.2fs carry=%d" % [st.target_business_id, EmployeeRarity.name_of(st.get_rarity_enum()), st.get_effective_trip_interval(), st.get_effective_carry_per_trip()])
+	for inf in influencers:
+		if inf.has_method("get_rarity_enum"):
+			print("[Main] influencer %s rarity=%s power_mult=%.2f" % [inf.influencer_name, EmployeeRarity.name_of(inf.get_rarity_enum()), inf.get_power_mult()])
 	# Debug smoke: pre-llena estantes activos para probar el ciclo de
 	# clientes sin requerir input del jugador. Activado por env var
 	# DEVIN_SMOKE=1.
@@ -129,6 +149,18 @@ func _ready() -> void:
 		if fnode and "production_time" in fnode:
 			print("[Main] DEVIN_SMOKE: factory production_time=%.2f" % fnode.production_time)
 		print("[Main] DEVIN_SMOKE: cashier_speed level=%d (browse_time reducido en spawner)" % GameManager.get_upgrade_level("cashier_speed"))
+		# EMP-1: contratar todos los influencers para validar boost de
+		# spawn de clientes (más clientes = más ventas = más cash).
+		for inf in influencers:
+			if inf.has_method("try_hire") and not inf.is_hired():
+				if inf.try_hire():
+					print("[Main] DEVIN_SMOKE: influencer hired (%s)" % inf.influencer_name)
+		# Reportar multiplicador combinado de influencers aplicado al spawner.
+		var spawner_node: Node = get_node_or_null("World/ClientSpawner")
+		if spawner_node and spawner_node.has_method("_influencer_mult"):
+			var imult: float = spawner_node._influencer_mult()
+			var eff_interval: float = spawner_node.spawn_interval / imult if imult > 0.0 else spawner_node.spawn_interval
+			print("[Main] DEVIN_SMOKE: influencer combined mult=x%.2f, effective spawn_interval=%.2fs" % [imult, eff_interval])
 		# Reportar reposición del reponedor (AUTO-2) tras esperar varios
 		# viajes (trip_interval ~2s → esperar 6s para ~3 viajes). El
 		# reporte es diferido para que _process de los stockers corra.

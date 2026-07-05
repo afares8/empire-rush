@@ -1176,3 +1176,49 @@
    capa 4 (EMP-1) → capa 5 (EVT/RNK/MON/SAVE/OFF/JUICE) → capa 6
    (EXP-2/MET) → Fase B (POLISH) → Fase C (V1-*).
 
+## Ronda 16 — iter 1 (2026-07-05 09:09)
+
+- **Capa 4 CERRADA con EMP-1**: sistema de rareza de empleados
+  (común/raro/épico/legendario) implementado sobre Cashier + Stocker
+  + nuevo Influencer. 3 tipos de empleados con habilidades distintas
+  (cobro +X%, reposición +X%, clientes +X%). Rareza visible via
+  RarityLabel + color de tint. Próximo: capa 5 (juice + eventos +
+  save + ranking).
+- **"devin huérfano concurrente" recurre (7ma vez)**: un devin.exe
+  concurrente reescribió employee_rarity.gd DURANTE mi sesión con
+  una implementación distinta (enum Tier, _meta() dict, + influencer).
+  Reconciliación selectiva funcionó: adopté la versión del orphan
+  (más limpia) + fixeé el class_name parse error. CERO pérdida de
+  trabajo. Fix OBLIGATORIO (7ma vez, sin efecto): `taskkill //F //IM
+  devin.exe` al START de cada sesión excepto el controller. El
+  controller NO está aplicando este fix.
+- **class_name cross-script NO resuelve al parsear (3ra confirmación)**:
+  `class_name EmployeeRarity` en employee_rarity.gd → error "Identifier
+  EmployeeRarity not declared" en cashier.gd/stocker.gd/main.gd/
+  influencer.gd al cargar. Fix confirmado: remover class_name, usar
+  `const EmployeeRarity = preload("res://scripts/game/employee_rarity.gd")`
+  en cada consumidor. Patrones afectados: cualquier helper nuevo
+  referenciado cross-script en headless. REGLA: si creas un helper
+  static, NO uses class_name; usa preload en consumidores.
+- **Patrón "rareza afecta 3 ejes" escala bien**: price_mult (precio
+  de contratación), power_mult (potencia de habilidad), color (tint
+  visual). Mismo helper sirve para 3 tipos de empleados sin
+  duplicación. Para futuros tipos de empleados (V1-10 empleados
+  premium), extender employee_rarity.gd con nueva ability_of function.
+- **Influencer = tercer tipo de empleado, cierra "3 empleados con
+  habilidades distintas" de EMP-1**: Cashier (cobro), Stocker
+  (reposición), Influencer (spawn de clientes). BLUEPRINT §13 lista
+  "Maya Marketing — atrae 10% más clientes" — el Influencer modela
+  eso. ClientSpawner lee el mult combinado de todos los influencers
+  contratados (producto de power_mult).
+- **value_mult se propaga via shelf, no via signal**: Cashier setea
+  `shelf.cashier_value_mult` en _apply_state (duck-typing con `in`),
+  client.gd lo lee en _do_buy. Más simple que una señal nueva y
+  robusto al orden de carga (el shelf ya existe cuando _apply_state
+  corre via call_deferred). Reutilizable para futuros multiplicadores
+  de venta (eventos, boosters).
+- **Export HTML5 +12KB por 1 helper + 1 nodo nuevo**: index.pck
+  108KB→120KB. employee_rarity.gd.remap + influencer.gd.remap
+  añadidos. El .pck crece lineal con código nuevo, sin overhead
+  significativo. El gate HTML5 se mantiene verde.
+
