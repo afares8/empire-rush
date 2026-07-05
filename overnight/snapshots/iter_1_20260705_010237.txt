@@ -1,0 +1,51 @@
+# Snapshot — Iteración 1 (ronda 1)
+Fecha: 20260705_010237
+Item(s) trabajados: GODOT-1, GODOT-2, GODOT-3
+Estado: completado
+
+Fase actual: A (construyendo MVP)
+Justificación: Capa 1 recién completada. Quedan todas las capas 2–6
+con items pendientes. El loop base (capa 2) no existe todavía.
+
+## Cambios
+- godot/godot.exe: Godot 4.3 stable portable descargado y renombrado
+  (godot.exe + godot_console.exe). .zip eliminado. NO commiteado
+  (gitignored).
+- scripts/autoload/economy.gd: singleton Economy con cash, gems,
+  empire_value, reputacion. Señales cash_changed / empire_value_changed.
+  add_cash, spend_cash, add_gems, reset.
+- scripts/autoload/game_manager.gd: singleton GameManager con
+  unlocked_zones, active_events, métricas locales (session_time,
+  events_played, ads_watched), unlock_zone, log_metrics.
+- scripts/game/main.gd: script raíz de Main.tscn. Boot message +
+  ESC para quit.
+- scenes/Main.tscn: escena raíz Node2D "Main" con hijo "World"
+  (Node2D) + Camera2D. Referencia main.gd.
+- assets/sprites/icon.svg: icono placeholder referenciado por
+  project.godot.
+- ROADMAP.md: capa 1 marcada completada, items movidos a
+  `## Completados`.
+
+## Verificación
+- Headless run: OK
+  `godot.exe --headless --path D:\empire-rush --check-only` carga el
+  proyecto, instancia autoloads Economy + GameManager, abre
+  Main.tscn y ejecuta _ready (imprime "[Main] Trade Empire Rush —
+  MVP boot") sin errores ni crashes.
+- Export HTML5: N/A
+  Capa 1 no justifica export. Se hará en EXP-1 (capa 6) o al cerrar
+  el primer item de capa 2 que toque el loop jugable.
+- Smoke del item:
+  - GODOT-1: `godot.exe --version` → 4.3.stable.official.77dcf97d8 ✓
+  - GODOT-2: `--check-only` sin errores de config ✓
+  - GODOT-3: Main.tscn abre y corre headless ✓
+
+## Próximo item sugerido
+LOOP-1 — Personaje jugador controlable (player.gd + Player.tscn,
+movimiento WASD top-down). Es el primer item de capa 2 y destraba
+LOOP-2 (cámara) y LOOP-3 (pickup).
+
+## Problemas encontrados
+- Ninguno. El `--check-only` de Godot 4.3 instancia los autoloads y
+  corre _ready de la main scene (no es un check puramente estático),
+  pero eso sirve como verificación de boot sin crash.

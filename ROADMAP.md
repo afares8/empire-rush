@@ -29,19 +29,7 @@ lanzamiento.**
 
 ### Capa 1 — Engine + proyecto base (destraba todo)
 
-- [ ] **GODOT-1** (P0, S) — Descargar Godot 4.3 portable a
-  `D:\empire-rush\godot\godot.exe`. Usar Godot 4.3 stable .NET o
-  standard (sin .NET, GDScript puro para el MVP). Verificar con
-  `godot.exe --version`. Si ya existe, saltar. Criterio: `godot.exe
-  --version` responde desde `D:\empire-rush\godot\`.
-- [ ] **GODOT-2** (P0, S) — Validar `project.godot` abriendo el
-  proyecto headless: `godot.exe --headless --path D:\empire-rush
-  --check-only`. Fixear cualquier error de config. Criterio: Godot
-  carga el proyecto sin errores.
-- [ ] **GODOT-3** (P0, S) — Crear `scenes/Main.tscn` (escena raíz
-  vacía con un Node2D "World" y una Camera2D). Configurar
-  `run/main_scene=res://scenes/Main.tscn` (ya está). Criterio:
-  `godot.exe --path D:\empire-rush scenes/Main.tscn` abre sin errores.
+> Completada en ronda 1, iter 1. Ver `## Completados`.
 
 ### Capa 2 — Loop base (recoger → vender → cobrar → invertir)
 
@@ -277,7 +265,14 @@ lanzamiento.**
 
 ## 📦 Completados
 
-(vacío — los items se mueven aquí al cerrarse)
+- [x] **GODOT-1** (P0, S, r1/i1) — Godot 4.3 stable portable en
+  `godot/godot.exe`. `godot.exe --version` = 4.3.stable.official.
+- [x] **GODOT-2** (P0, S, r1/i1) — `project.godot` valida headless
+  sin errores. Creados autoloads `Economy` y `GameManager` para
+  destrabar la carga.
+- [x] **GODOT-3** (P0, S, r1/i1) — `scenes/Main.tscn` creada con
+  Node2D "Main" + "World" + Camera2D. Script `main.gd` arranca sin
+  crash. `run/main_scene` ya apuntaba a `res://scenes/Main.tscn`.
 
 ---
 
