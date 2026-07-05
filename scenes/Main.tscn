@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://main_scene_ter"]
+[gd_scene load_steps=16 format=3 uid="uid://main_scene_ter"]
 
 [ext_resource type="Script" path="res://scripts/game/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2_player"]
@@ -12,6 +12,7 @@
 [ext_resource type="PackedScene" path="res://scenes/Cashier.tscn" id="12_cash"]
 [ext_resource type="PackedScene" path="res://scenes/UpgradePad.tscn" id="13_upg"]
 [ext_resource type="PackedScene" path="res://scenes/Stocker.tscn" id="14_stk"]
+[ext_resource type="PackedScene" path="res://scenes/Influencer.tscn" id="15_inf"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -87,18 +88,21 @@ position = Vector2(-120, 60)
 target_business_id = "biz_market"
 hire_price = 100.0
 cashier_name = "Cajero del Puesto"
+rarity = "common"
 
 [node name="CashierBIZ2" parent="World" instance=ExtResource("12_cash")]
 position = Vector2(240, -100)
 target_business_id = "biz_perfume"
 hire_price = 200.0
 cashier_name = "Cajero de Perfumes"
+rarity = "epic"
 
 [node name="CashierBIZ3" parent="World" instance=ExtResource("12_cash")]
 position = Vector2(-280, 260)
 target_business_id = "biz_snacks"
 hire_price = 150.0
 cashier_name = "Cajero del Mini Market"
+rarity = "legendary"
 
 [node name="StockerBIZ1" parent="World" instance=ExtResource("14_stk")]
 position = Vector2(-60, 140)
@@ -107,6 +111,7 @@ hire_price = 120.0
 stocker_name = "Reponedor del Puesto"
 trip_interval = 2.0
 carry_per_trip = 2
+rarity = "rare"
 
 [node name="StockerBIZ2" parent="World" instance=ExtResource("14_stk")]
 position = Vector2(300, -60)
@@ -115,6 +120,7 @@ hire_price = 240.0
 stocker_name = "Reponedor de Perfumes"
 trip_interval = 2.5
 carry_per_trip = 2
+rarity = "common"
 
 [node name="StockerBIZ3" parent="World" instance=ExtResource("14_stk")]
 position = Vector2(-220, 320)
@@ -123,6 +129,7 @@ hire_price = 180.0
 stocker_name = "Reponedor del Mini Market"
 trip_interval = 1.8
 carry_per_trip = 3
+rarity = "epic"
 
 [node name="UpgradeSpeed" parent="World" instance=ExtResource("13_upg")]
 position = Vector2(80, 100)
@@ -163,6 +170,18 @@ upgrade_name = "Produccion"
 base_price = 200.0
 max_level = 5
 price_growth = 1.7
+
+[node name="Influencer1" parent="World" instance=ExtResource("15_inf")]
+position = Vector2(160, -40)
+influencer_name = "Maya Marketing"
+hire_price = 300.0
+rarity = "rare"
+
+[node name="Influencer2" parent="World" instance=ExtResource("15_inf")]
+position = Vector2(-360, 80)
+influencer_name = "Carlos Promo"
+hire_price = 500.0
+rarity = "epic"
 
 [node name="ClientSpawner" type="Node2D" parent="World"]
 position = Vector2(0, 0)

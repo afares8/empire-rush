@@ -1,0 +1,109 @@
+# Snapshot — Fine-tuning ronda 15
+Fecha: 20260705_085200
+
+## Lecciones extraídas
+
+### Proceso
+1. El anti-patrón `Reset-FailedIteration` dejó de golpear en r11-r15
+   (workaround implícito: controller no corrió `git clean -fd`).
+   5 rondas consecutivas commitearon su trabajo sin pérdidas.
+   Primera vez en 15 rondas que el overnight no pierde trabajo.
+2. "devin huérfano concurrente" recurre 5 rondas seguidas
+   (r11-r15) sin fix aplicado. Cada ronda encontró su item YA
+   escrito por una sesión concurrente. Fix pendiente (6ta vez):
+   `taskkill //F //IM devin.exe` al START de cada sesión.
+3. Reconciliación selectiva (adoptar lo limpio, reescribir lo
+   buggy, nunca sobreescribir ciegamente) fue la habilidad clave
+   que permitió cerrar 8 items en 5 rondas a pesar de la
+   concurrencia.
+4. El overnight operó a 1/5 de capacidad teórica: 1 iter/ronda
+   en r11-r15 (~5-10 min de trabajo real cada una). El controller
+   debe lanzar múltiples iter/ronda con done-marker por iteración.
+5. Snapshots se escribieron en las 5 rondas (proceso sano vs r5
+   donde se perdieron por `git clean`).
+
+### Técnicas
+1. Patrón `Business` (Node2D contenedor + state machine locked/
+   unlocked via GameManager.zone_unlocked) escala a 5 negocios +
+   factory + warehouse sin código nuevo por negocio.
+2. Empleados per-business (Cashier + Stocker) > per-warehouse:
+   simétrico, escala precio por negocio, gate natural por locked.
+3. Wall-clock (Time.get_ticks_msec) es OBLIGATORIO para timers en
+   headless --quit-after (5ta confirmación; get_tree().create_timer
+   NO es wall-clock en headless).
+4. GameManager como registro de upgrades desacopla pad de
+   consumidor (forward-compat SAVE-1: solo persistir upgrades
+   dict + zones_unlocked + cash/empire_value).
+5. `add_stock(amount)` API pública en Shelf es el complemento
+   simétrico de `take_item(n)` para automatismos.
+6. Stale `.godot/` cache tras añadir class_name da conteos
+   erróneos → `rm -rf .godot` antes del primer run post-add.
+
+### Diseño
+1. La cadena de automatización CIERRA §32 "mi imperio trabaja por
+   mí": AUTO-1 (cajero) + AUTO-2 (reponedor) + BIZ-4 (factory) =
+   negocio 100% pasivo validado en smoke r15.
+2. 16 pads pulsando con precios escalonados ($80-$600) dan meta
+   cercana exponencial (§32.2, §26 "cada 10s pasa algo"). PERO sin
+   juice ni balance fino, la satisfacción táctil no acompaña.
+3. El loop sigue SIN sentirse adictivo después de 15 rondas:
+   mecánica completa validada en headless, PERO sin juice, sin
+   validación en navegador (nadie abrió index.html en 15 rondas),
+   sin balance fino, sin eventos, sin save. MVP "funcional" no
+   "adictivo".
+4. El 4to beat del MissionGuide (HIRE_HELP) ahora tiene cajero
+   real (AUTO-1 r13). El primer minuto §25 está completo en código
+   pero no validado en navegador.
+5. El MVP está a ~6-8 iter de ser "lanzado" de verdad: EMP-1 +
+   JUICE-1 + POLISH-2/3/5/6 + SAVE-1 + EVT-1/2 + GATE-1/GATE-3.
+   Con fix del controller (multi-iter), 2-3 rondas más.
+
+## Cambios al ROADMAP
+- Re-priorización r15 agregada al top (por sesión concurrente,
+  adoptada y extendida): (1) EMP-1, (2) JUICE-1 + POLISH-1/2/3
+  suben a P0 dentro de capa 5, (3) EVT-1/2, (4) SAVE-1, (5) RNK-1,
+  (6) POLISH-6 + GATE-3, (7) EXP-2 + MET-1, (8) POLISH-4/5/7/8/9/10,
+  (9) V1-* NO tocar hasta Fase A+B completas.
+- Añadida nota de fix OBLIGATORIO del controller (capacidad):
+  multi-iter por ronda + commit WIP cada 10 min.
+- Re-priorización r10 marcada como histórica (BIZ-1..5 y AUTO-1/2
+  UPG-1..5 ya completados en r11-r15).
+- No se agregaron items nuevos a Fase C (V1-1..23 ya listados desde
+  r5; GATE/MOB ya listados desde r5).
+
+## Veredicto del MVP
+- **PARCIAL** — el cimiento es sólido y COMPLETO en código (capa 1
+  + 1.5 + capa 2 + capa 3 + capa 4 a 7/8), export HTML5 verde
+  (108KB pck), headless run OK, cadena de automatización validada
+  (factory→pickup→shelf→client→cashier→stocker→warehouse→Economy).
+  16 pads activos con precios escalonados.
+- PERO el MVP NO es adictivo hoy: sin juice (recoger dinero
+  silencioso), sin fly-to-HUD, sin screen shake, sin validación de
+  feel en navegador (0 veces en 15 rondas), sin balance fino, sin
+  eventos, sin save, sin música. El primer minuto §25 es hipótesis
+  no verificada.
+- Necesita 4-6 iter de Fase B (JUICE-1 + POLISH-2/3/5/6) + SAVE-1
+  + EVT-1/2 + GATE-3 (validación navegador) antes de lanzar.
+- El blocker #1 no es técnico, es de proceso: el overnight opera a
+  1/5 de capacidad (1 iter/ronda) y "devin huérfano concurrente"
+  recurre sin fix. Sin fixear el controller, el lanzamiento tarda
+  6-8 rondas; con fix, 2-3 rondas.
+
+## Próximo item sugerido (si se corre otra ronda)
+1. **FIX-CONTROLLER** (proceso, no item de ROADMAP): editar
+   `overnight/session.ps1` y `overnight/run_overnight.ps1` para
+   (a) `taskkill //F //IM devin.exe` al START de cada sesión
+   excepto el controller, (b) loop interno multi-iteración con
+   done-marker por iteración, (c) commit WIP cada 10 min. SIN
+   ESTO, NO CORRER MÁS RONDAS — el overnight sigue a 1/5 de
+   capacidad y con race conditions.
+2. **EMP-1** — rareza de empleados (capa 4, M). Cierra capa 4.
+   Patrón Cashier/Stocker per-business con rareza + habilidad.
+3. **JUICE-1 + POLISH-2/3** — partículas + sonido + cash volando
+   al HUD + screen shake al desbloquear. Es lo que más impacta la
+   satisfacción táctil (§32.3, §26, regla de oro AGENTS.md).
+4. **SAVE-1** — guardado local localStorage HTML5. Retención D1.
+5. **EVT-1 + EVT-2** — eventos Rush Hour + VIP. Variación anti-
+   monotonía (§33.1).
+6. **GATE-3** — smoke manual de 5 min en navegador validando los
+   4 beats del primer minuto (§25). Gate pre-lanzamiento.

@@ -155,13 +155,9 @@ lanzamiento.**
 
 ### Capa 4 — Automatización + upgrades + empleados
 
-> UPG-1..5 cerrados en r14/i1, AUTO-1 en r13/i1, AUTO-2 en r15/i1
-> (ver `## Completados`). Siguiente: EMP-1 (rareza de empleados).
-
-- [ ] **EMP-1** (P2, M) — Sistema de rareza de empleados
-  (común/raro/épico/legendario) con habilidades especiales. Al
-  menos 3 empleados con habilidades distintas. Criterio: los
-  empleados tienen rareza y habilidad visible.
+> UPG-1..5 cerrados en r14/i1, AUTO-1 en r13/i1, AUTO-2 en r15/i1,
+> EMP-1 en r16/i1 (ver `## Completados`). Capa 4 CERRADA. Siguiente:
+> capa 5 (eventos + ranking + monetización + save + juice).
 
 ### Capa 5 — Eventos + ranking + monetización MVP + pulido
 
@@ -507,6 +503,32 @@ lanzamiento.**
   biz_perfume=4 (2 viajes × 2), biz_snacks=9 (3 viajes × 3), warehouse
   20→1 (19 consumidos). Export HTML5 OK (stocker.gd.remap en .pck
   108KB, +10KB vs r14).
+- [x] **EMP-1** (P2, M, r16/i1) — Sistema de rareza de empleados.
+  `scripts/game/employee_rarity.gd` (helper `extends RefCounted` con
+  enum Tier COMMON/RARE/EPIC/LEGENDARY, metadata por tier: color,
+  price_mult 1.0/1.5/2.2/3.5, power_mult 1.0/1.25/1.6/2.0, label;
+  static getters from_string/name_of/color_of/price_mult_of/
+  power_mult_of/cashier_ability_of/stocker_ability_of/
+  influencer_ability_of; NO usa class_name para evitar parse error
+  cross-script LEARNINGS r2, consumidores hacen preload). Cashier y
+  Stocker extendidos con `@export var rarity`, `_resolve_rarity()`,
+  `_effective_price`, y efectos: Cashier aplica `cashier_value_mult`
+  (power_mult) a las ventas vía shelf.cashier_value_mult leído por
+  client.gd; Stocker aplica `_effective_trip_interval` (trip/mult) y
+  `_effective_carry_per_trip` (carry×mult). Nuevo `Influencer`
+  (tercer tipo de empleado, BLUEPRINT §13 "Maya Marketing"): reduce
+  spawn_interval del ClientSpawner por power_mult combinado de todos
+  los influencers contratados. RarityLabel añadido a Cashier.tscn,
+  Stocker.tscn, Influencer.tscn mostrando "Rareza · Habilidad" con
+  color de rareza. Main.tscn: 3 cajeros (Comun/Epico/Legendario), 3
+  reponedores (Raro/Comun/Epico), 2 influencers (Raro/Epico). Headless
+  DEVIN_SMOKE verifica: rarezas reportadas en boot, contratación con
+  precios efectivos ($100/$440/$525 cajeros, $180/$240/$396
+  reponedores, $450 influencer), value_mult aplicado a ventas ($5
+  comun, $24 epico perfume, $6 legendario snacks), spawn_interval
+  3.0s→2.40s (÷1.25 influencer raro). Export HTML5 OK (index.pck
+  120KB, +12KB vs r15, incluye employee_rarity.gd.remap +
+  influencer.gd.remap). Capa 4 CERRADA.
 
 ---
 

@@ -17,6 +17,10 @@
 class_name Stocker
 extends Area2D
 
+# EMP-1: preload para evitar el issue de class_name cross-script
+# (LEARNINGS r2).
+const EmployeeRarity = preload("res://scripts/game/employee_rarity.gd")
+
 signal hired(business_id: String)
 
 @export var target_business_id: String = "biz_market"
@@ -27,6 +31,10 @@ signal hired(business_id: String)
 # Unidades movidas por viaje (respeta carry_capacity del almacén y
 # capacity del estante objetivo).
 @export var carry_per_trip: int = 2
+# EMP-1: rareza del empleado ("common"/"rare"/"epic"/"legendary").
+# Afecta color, precio final, trip_interval (rareza alta = viajes más
+# frecuentes) y carry_per_trip (rareza alta = más unidades por viaje).
+@export var rarity: String = "common"
 
 var _hired: bool = false
 var _player_in_area: bool = false
@@ -37,21 +45,55 @@ var _warehouse: Node = null
 var _last_trip_ms: int = 0
 # Contador de unidades reposidas (para smoke + telemetría futura).
 var units_restocked: int = 0
+# EMP-1: rareza resuelta (enum) + valores efectivos derivados.
+var _rarity_enum: int = 0
+var _effective_price: float = 120.0
+var _effective_trip_interval: float = 2.0
+var _effective_carry_per_trip: int = 2
 
 @onready var _body: ColorRect = $Body
 @onready var _price_label: Label = $PriceLabel
 @onready var _prompt_label: Label = $PromptLabel
+@onready var _rarity_label: Label = $RarityLabel
 
 func _ready() -> void:
 	add_to_group("stockers")
-	_price_label.text = "$%d" % int(hire_price)
+	_resolve_rarity()
+	_price_label.text = "$%d" % int(_effective_price)
 	_prompt_label.text = "E para contratar reponedor"
 	_prompt_label.visible = false
+	# Etiqueta de rareza + habilidad visible siempre (EMP-1 criterio).
+	if _rarity_label:
+		_rarity_label.text = "%s · %s" % [EmployeeRarity.name_of(_rarity_enum), EmployeeRarity.stocker_ability_of(_rarity_enum)]
+		_rarity_label.add_theme_color_override("font_color", EmployeeRarity.color_of(_rarity_enum))
+	# Tint del cuerpo con el color de rareza.
+	_body.color = EmployeeRarity.color_of(_rarity_enum)
 	# Resolver referencias tras un frame para que hijos del Business y
 	# el Warehouse ya estén listos (LEARNINGS r8 #2 call_deferred).
 	call_deferred("_resolve_references")
 	if not _hired:
 		_start_pulse()
+
+# EMP-1: resuelve la rareza desde el string exportado y deriva
+# precio efectivo, trip_interval efectivo (más rápido con rareza) y
+# carry_per_trip efectivo (más unidades con rareza).
+func _resolve_rarity() -> void:
+	_rarity_enum = EmployeeRarity.from_string(rarity)
+	var mult: float = EmployeeRarity.power_mult_of(_rarity_enum)
+	_effective_price = hire_price * EmployeeRarity.price_mult_of(_rarity_enum)
+	# Rareza alta → trips más frecuentes (intervalo dividido por mult)
+	# y más unidades por viaje (carry multiplicado por mult).
+	_effective_trip_interval = maxf(0.4, trip_interval / mult)
+	_effective_carry_per_trip = int(round(float(carry_per_trip) * mult))
+
+func get_rarity_enum() -> int:
+	return _rarity_enum
+
+func get_effective_trip_interval() -> float:
+	return _effective_trip_interval
+
+func get_effective_carry_per_trip() -> int:
+	return _effective_carry_per_trip
 
 func _resolve_references() -> void:
 	_target_shelves = []
@@ -125,9 +167,9 @@ func _on_player_interact() -> void:
 func try_hire() -> bool:
 	if _hired:
 		return false
-	if Economy.cash < hire_price:
+	if Economy.cash < _effective_price:
 		return false
-	if not Economy.spend_cash(hire_price):
+	if not Economy.spend_cash(_effective_price):
 		return false
 	# Si las referencias aún no se resolvieron (call_deferred pendiente),
 	# resolver ahora (LEARNINGS r13 #2: API pública llamada desde _ready
@@ -138,7 +180,7 @@ func try_hire() -> bool:
 	_last_trip_ms = Time.get_ticks_msec()
 	_apply_state()
 	emit_signal("hired", target_business_id)
-	print("[Stocker] contratado para %s por $%d" % [target_business_id, int(hire_price)])
+	print("[Stocker] contratado (%s) para %s por $%d (intervalo=%.2fs carry=%d)" % [EmployeeRarity.name_of(_rarity_enum), target_business_id, int(_effective_price), _effective_trip_interval, _effective_carry_per_trip])
 	return true
 
 func _process(_delta: float) -> void:
@@ -146,7 +188,7 @@ func _process(_delta: float) -> void:
 		return
 	# Timer wall-clock: robusto en headless --quit-after (LEARNINGS r5).
 	var now_ms: int = Time.get_ticks_msec()
-	if now_ms - _last_trip_ms < int(trip_interval * 1000.0):
+	if now_ms - _last_trip_ms < int(_effective_trip_interval * 1000.0):
 		return
 	_last_trip_ms = now_ms
 	_do_trip()
@@ -177,8 +219,9 @@ func _do_trip() -> void:
 		if space > best_space:
 			best = s
 			best_space = space
-	# Retirar del almacén (respeta stock disponible).
-	var got: int = _warehouse.withdraw(carry_per_trip)
+	# Retirar del almacén (respeta stock disponible). EMP-1: usa carry
+	# efectivo derivado de la rareza.
+	var got: int = _warehouse.withdraw(_effective_carry_per_trip)
 	if got <= 0:
 		return
 	# Depositar en el estante (respeta capacity).
@@ -202,7 +245,9 @@ func _apply_state() -> void:
 	visible = true
 	set_deferred("monitoring", true)
 	if _hired:
-		_body.color = Color(0.45, 0.85, 0.55, 0.9)
+		# EMP-1: al contratar, el cuerpo adopta el color de rareza.
+		var rc: Color = EmployeeRarity.color_of(_rarity_enum)
+		_body.color = Color(rc.r, rc.g, rc.b, 0.95)
 		_price_label.text = "REPONEDOR ✓"
 		_prompt_label.visible = false
 		# Pop táctil al contratar.
@@ -212,15 +257,18 @@ func _apply_state() -> void:
 		tw.tween_property(_body, "scale", Vector2(1.0, 1.0), 0.12) \
 			.set_trans(Tween.TRANS_SINE)
 	else:
-		_price_label.text = "$%d" % int(hire_price)
+		_price_label.text = "$%d" % int(_effective_price)
 
 # Pulso suave para llamar la atención del jugador (meta cercana visible).
+# EMP-1: el pulso oscila entre el color de rareza y una versión atenuada.
 func _start_pulse() -> void:
+	var rc: Color = EmployeeRarity.color_of(_rarity_enum)
+	var dim: Color = Color(rc.r * 0.6, rc.g * 0.6, rc.b * 0.6, 0.55)
 	var tw: Tween = create_tween()
 	tw.set_loops()
-	tw.tween_property(_body, "color", Color(0.55, 0.9, 0.65, 0.85), 0.6) \
+	tw.tween_property(_body, "color", Color(rc.r, rc.g, rc.b, 0.85), 0.6) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tw.tween_property(_body, "color", Color(0.4, 0.7, 0.5, 0.55), 0.6) \
+	tw.tween_property(_body, "color", dim, 0.6) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 func _pop() -> void:

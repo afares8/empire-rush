@@ -33,8 +33,20 @@ func _refresh_shelves() -> void:
 
 func _process(_delta: float) -> void:
 	if Time.get_ticks_msec() >= _next_spawn_ms:
-		_next_spawn_ms = Time.get_ticks_msec() + int(spawn_interval * 1000.0)
+		# EMP-1: influencers contratados reducen el intervalo de spawn
+		# (más clientes por minuto). El multiplicador combinado es el
+		# producto de los power_mult de cada influencer contratado.
+		var interval: float = spawn_interval / _influencer_mult()
+		_next_spawn_ms = Time.get_ticks_msec() + int(interval * 1000.0)
 		_try_spawn()
+
+# EMP-1: multiplicador combinado de influencers contratados (>= 1.0).
+func _influencer_mult() -> float:
+	var mult: float = 1.0
+	for inf in get_tree().get_nodes_in_group("influencers"):
+		if inf.has_method("is_hired") and inf.is_hired() and inf.has_method("get_power_mult"):
+			mult *= inf.get_power_mult()
+	return mult
 
 func _try_spawn() -> void:
 	# Refrescar siempre: negocios pueden desbloquearse mid-sesión.

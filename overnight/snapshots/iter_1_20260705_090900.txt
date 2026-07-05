@@ -1,0 +1,171 @@
+# Snapshot — Iteración 1 (ronda 16)
+Fecha: 2026-07-05 09:09
+Item(s) trabajados: EMP-1 (sistema de rareza de empleados)
+Estado: completado
+
+Fase actual: A (construyendo MVP)
+Justificación: capa 4 tenía solo EMP-1 pendiente (AUTO-1 + UPG-1..5 +
+AUTO-2 hechos en r13-r15). EMP-1 cierra capa 4. Con EMP-1, los 3 tipos
+de empleado (Cashier, Stocker, Influencer) tienen rareza (común/raro/
+épico/legendario) y habilidad especial visible, conectada al loop:
+Cashier +X% cash/venta, Stocker +X% carry/viaje + trips más rápidos,
+Influencer +X% tasa de spawn de clientes. Cumple BLUEPRINT §13 "3
+empleados con rareza y habilidad" y §32 "automatización progresiva".
+Capa 4 CERRADA. Siguiente: capa 5 (EVT-1/RNK-1/SAVE-1/JUICE-1).
+
+## Cambios
+- scripts/game/employee_rarity.gd (NUEVO): helper con class_name
+  EmployeeRarity, enum Tier COMMON/RARE/EPIC/LEGENDARY, metadata por
+  tier (color, price_mult 1.0/1.5/2.2/3.5, power_mult 1.0/1.25/1.6/2.0,
+  label), static getters from_string/name_of/color_of/price_mult_of/
+  power_mult_of + cashier_ability_of/stocker_ability_of/
+  influencer_ability_of (textos de habilidad visibles). Sin autoload:
+  solo static getters.
+- scripts/game/cashier.gd (modificado, sesión concurrente + reconciliado):
+  añadidos @export var rarity (string "common"/"rare"/"epic"/"legendary"),
+  _resolve_rarity(), _rarity_enum, _value_mult, _effective_price.
+  try_hire usa _effective_price. _apply_state setea shelf.cashier_value_mult
+  = _value_mult si contratado (1.0 si no). RarityLabel muestra
+  "Rareza · Cobro +X%". Body tint con color de rareza. Pulso oscila
+  con color de rareza.
+- scripts/game/stocker.gd (modificado, sesión concurrente + reconciliado):
+  añadidos @export var rarity, _resolve_rarity(), _rarity_enum,
+  _effective_price, _effective_trip_interval (trip/power_mult, mín 0.4s),
+  _effective_carry_per_trip (carry×power_mult redondeado). try_hire usa
+  _effective_price. _process usa _effective_trip_interval. _do_trip usa
+  _effective_carry_per_trip. RarityLabel muestra "Rareza · Reposición +X%".
+- scripts/game/shelf.gd (modificado): añadida var cashier_value_mult
+  (float 1.0) seteada por Cashier._apply_state según rareza. client.gd
+  la lee al comprar con cajero.
+- scripts/game/client.gd (modificado, sesión concurrente): _do_buy
+  multiplica total por target_shelf.cashier_value_mult cuando hay
+  cajero (cobro automático con bono de rareza).
+- scripts/game/influencer.gd (NUEVO): tercer tipo de empleado
+  (BLUEPRINT §13 "Maya Marketing — atrae 10% más clientes"). Patrón
+  Cashier/Stocker: @export rarity, try_hire con _effective_price,
+  get_power_mult() expone power_mult. Se añade al grupo "influencers".
+  NO reusa GameManager.unlock_zone (igual que Cashier/Stocker).
+- scenes/Influencer.tscn (NUEVO): Area2D + Body ColorRect rosa +
+  PriceLabel + PromptLabel + RarityLabel + AreaShape 80x80.
+- scripts/game/client_spawner.gd (modificado): _process calcula
+  interval = spawn_interval / _influencer_mult() donde _influencer_mult()
+  es el producto de power_mult de todos los influencers contratados
+  (>= 1.0). Más clientes por minuto = más ventas = más cash.
+- scenes/Cashier.tscn (modificado, sesión concurrente): añadido
+  RarityLabel (Label bajo el body, "Rareza · Habilidad").
+- scenes/Stocker.tscn (modificado, sesión concurrente): añadido
+  RarityLabel.
+- scenes/Main.tscn (modificado, sesión concurrente + yo): asignadas
+  raridades a los 3 cajeros (Comun/Epico/Legendario) y 3 reponedores
+  (Raro/Comun/Epico). Añadidas 2 instancias de Influencer:
+  Influencer1 (160,-40) "Maya Marketing" Raro $300, Influencer2
+  (-360,80) "Carlos Promo" Epico $500. load_steps 15→16.
+- scripts/game/main.gd (modificado, sesión concurrente + reconciliado):
+  boot report añade "Influencers=N hired=M" + reporta rareza/habilidad
+  de cada cajero/reponedor/influencer. DEVIN_SMOKE contrata los 2
+  influencers y reporta multiplicador combinado + spawn_interval
+  efectivo. Fix de bug estructural de la sesión concurrente: el bloque
+  EMP-1 rarity report y _report_stocker_smoke.call_deferred() estaban
+  FUERA del if DEVIN_SMOKE → movidos dentro. Influencers se contratan
+  después de upgrades en el smoke.
+- ROADMAP.md (modificado, sesión concurrente): EMP-1 marcado [x] r16/i1
+  y movido a Completados con detalle. Capa 4 marcada CERRADA.
+
+## Verificación
+- Headless run: OK
+  `godot --headless --quit-after 60`:
+    [Business] biz_market ready, locked=false zone=
+    [Business] biz_perfume ready, locked=true zone=zone_perfume
+    [Business] biz_snacks ready, locked=true zone=zone_snacks
+    [Factory] biz_factory ready, locked=true zone=zone_factory
+    [Main] Businesses=5 locked=4
+    [Main] Factory=true Warehouse=true
+    [Main] Active shelves=1/4
+    [Main] ClientSpawner=true
+    [Main] HUD=true MissionGuide=true UnlockPads=5
+    [Main] Cashiers=3 hired=0
+    [Main] Stockers=3 hired=0
+    [Main] UpgradePads=5 total_level=0
+    [Main] Influencers=2 hired=0
+    [Main] cashier biz_market rarity=Comun value_mult=1.00
+    [Main] cashier biz_perfume rarity=Epico value_mult=1.60
+    [Main] cashier biz_snacks rarity=Legendario value_mult=2.00
+    [Main] stocker biz_market rarity=Raro trip=1.60s carry=3
+    [Main] stocker biz_perfume rarity=Comun trip=2.50s carry=2
+    [Main] stocker biz_snacks rarity=Epico trip=1.13s carry=5
+    [Main] influencer Maya Marketing rarity=Raro power_mult=1.25
+    [Main] influencer Carlos Promo rarity=Epico power_mult=1.60
+  2 influencers cargan sin crash. Todas las rarezas reportadas.
+  Nota: el primer run tras `rm -rf .godot` dio parse error
+  "Identifier EmployeeRarity not declared" en influencer.gd (cache
+  stale, LEARNINGS r12 #3). El segundo run (cache regenerada) pasó
+  limpio. Confirma LEARNINGS r2/r12: class_name cross-script puede
+  no resolverse en el primer parse; re-run tras rm .godot lo fixea.
+- Export HTML5: OK
+  `godot --headless --export-release "HTML5" exports/html5/index.html`
+  genera index.html + index.js + index.pck (120KB, +12KB vs r15) +
+  index.wasm (35MB) sin errores. employee_rarity.gd.remap +
+  influencer.gd.remap incluidos en .pck.
+- Smoke del item: OK
+  `DEVIN_SMOKE=1 godot --headless --quit-after 12000`:
+    [Cashier] contratado (Comun) para biz_market por $100 (mult x1.00)
+    [Cashier] contratado (Epico) para biz_perfume por $440 (mult x1.60)
+    [Cashier] contratado (Legendario) para biz_snacks por $525 (mult x2.00)
+    [Stocker] contratado (Raro) para biz_market por $180 (intervalo=1.60s carry=3)
+    [Stocker] contratado (Comun) para biz_perfume por $240 (intervalo=2.50s carry=2)
+    [Stocker] contratado (Epico) para biz_snacks por $396 (intervalo=1.13s carry=5)
+    [Influencer] contratado (Raro) por $450 (power_mult x1.25)
+    [Main] DEVIN_SMOKE: influencer hired (Maya Marketing)
+    [Main] DEVIN_SMOKE: influencer combined mult=x1.25, effective spawn_interval=2.40s
+    [Client] bought 1 unit(s) from Shelf, cashier auto-collected $5 (mult x1.00)
+    [Client] bought 1 unit(s) from Shelf, cashier auto-collected $6 (mult x2.00)
+    [Client] bought 1 unit(s) from Shelf, cashier auto-collected $24 (mult x1.60)
+    [Main] DEVIN_SMOKE: biz_market shelf stock=6 (drained=0, restocked by stocker)
+    [Main] DEVIN_SMOKE: stocker biz_market units_restocked=6
+    [Main] DEVIN_SMOKE: stocker biz_perfume units_restocked=2
+    [Main] DEVIN_SMOKE: stocker biz_snacks units_restocked=12
+    [Main] DEVIN_SMOKE: warehouse stock=0 (consumed by stockers)
+  Las 3 rarezas de cajero aplican value_mult: camiseta $5×1.00=$5,
+  snack $3×2.00=$6, perfume $15×1.60=$24. Los 3 reponedores aplican
+  carry efectivo (3/2/5) e intervalo efectivo (1.6s/2.5s/1.13s). El
+  influencer Raro (x1.25) reduce spawn_interval de 3.0s a 2.40s. El
+  influencer Epico ($1100) no se contrató en el smoke por falta de
+  cash tras upgrades (comportamiento correcto). Los 3 tipos de
+  empleado tienen rareza + habilidad visible (RarityLabel). Criterio
+  EMP-1 cumplido: 3 empleados con rareza y habilidad distintas.
+
+## Próximo item sugerido
+EVT-1 — Evento "Rush Hour" (capa 5, S). 2x clientes durante 60s con
+recompensa al terminar. Es el primer item de capa 5 (eventos) y
+conecta naturalmente con el Influencer (más clientes = más ventas).
+Alternativa: JUICE-1 (partículas/sonido al recoger dinero) si se
+prioriza feel sobre variación. Recomendación: EVT-1 primero — abre
+capa 5 y da variación al loop (§33.1 evitar repetición).
+
+## Problemas encontrados
+- "devin huérfano concurrente" recurre en r16 (6ta ronda seguida con
+  conflicto, LEARNINGS r11-r15 confirmados): al iniciar, cashier.gd,
+  stocker.gd, shelf.gd, client.gd, Cashier.tscn, Stocker.tscn,
+  Main.tscn, main.gd YA estaban modificados por una sesión concurrente
+  con su propia versión de EMP-1. La versión concurrente era limpia en
+  diseño (string-based rarity, RarityLabel, ability labels, effective
+  values) PERO tenía 2 bugs: (1) stocker.gd computaba _effective_* pero
+  no las usaba en try_hire/_process/_do_trip (la sesión concurrente
+  lo fixeó antes de que yo interviniera); (2) main.gd tenía el bloque
+  EMP-1 rarity report + _report_stocker_smoke.call_deferred() FUERA
+  del if DEVIN_SMOKE → yo lo moví dentro. Reconciliación selectiva
+  (LEARNINGS r14 #2): adopté el diseño concurrente (string rarity,
+  RarityLabel, API EmployeeRarity.name_of/color_of/etc.), escribí
+  employee_rarity.gd para matchear esa API, y añadí el Influencer
+  (nuevo, no hecho por la sesión concurrente) + ClientSpawner boost +
+  fix del main.gd estructural. NO sobreescribí el trabajo concurrente.
+- Parse error transitorio "Identifier EmployeeRarity not declared" en
+  influencer.gd en el primer run tras `rm -rf .godot` (LEARNINGS r12 #3
+  confirmada): class_name cross-script no se resuelve en el primer
+  parse cuando el script consumidor se carga antes que el definidor.
+  El segundo run (cache regenerada con EmployeeRarity registrado) pasó
+  limpio. Fix: re-run tras rm .godot. No requiere cambio de código.
+- Duplicación silenciosa de `cashier_value_mult` en shelf.gd: tanto la
+  sesión concurrente como yo añadimos la misma var independientemente
+  (LEARNINGS r15 #2 confirmada de nuevo). Fix: removí mi duplicado,
+  conservé la versión concurrente (idéntica en lógica).
