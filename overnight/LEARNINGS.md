@@ -427,3 +427,109 @@
    El balance real se ajusta en POLISH-6; por ahora los precios
    dan variedad táctil.
 
+### Lecciones de proceso
+1. **CRÍTICO — "devin huérfano concurrente" recurre en r11**: al
+   iniciar r11 había 3 devin.exe vivos simultáneamente (tasklist
+   confirmó PIDs 19880, 3744, 20600). Dos sesiones editaban los
+   mismos archivos (Main.tscn, main.gd, ROADMAP.md) en paralelo.
+   Síntoma: escribí Main.tscn con `business_id="biz_minimarket"`
+   pero al re-leer tenía `business_id="biz_snacks"` (la otra sesión
+   lo sobreescribió). La lección r5 #4 y r10 #3 NO se aplicaron al
+   START de la sesión. Fix OBLIGATORIO: `taskkill //F //IM devin.exe`
+   al inicio de cada sesión EXCEPTO el controller, o usar un PID
+   file para matar solo sesiones anteriores. Origen: tasklist + ps
+   mostrando 3 devin.exe + write/edit fallando por string no
+   encontrado (la otra sesión cambió el contenido).
+2. **Cuando hay sesiones concurrentes, re-leer antes de cada edit**:
+   el edit tool falla ruidosamente si el old_string ya no existe
+   (la otra sesión lo modificó). Esto es un detector implícito de
+   conflictos. Cuando falle, re-read del archivo y adoptar el estado
+   actual. NO forzar el propio contenido sin leer — se pierde trabajo
+   de la otra sesión. Origen: 2 edits fallidos en main.gd/ROADMAP.md.
+
+## Ronda 12 — iter 1 (2026-07-05 08:14)
+
+### Resumen
+- Items completados Y commiteados (pending commit): 2 — BIZ-4 (taller),
+  BIZ-5 (almacén). Capa 3 CERRADA (5/5 negocios).
+- Headless run OK, Export HTML5 OK. MVP jugable en navegador con 5
+  negocios (1 unlocked + 4 desbloqueables: perfume $120, snacks $400,
+  taller $250, almacén $600).
+
+### Lecciones técnicas
+1. **Factory con producción wall-clock (Time.get_ticks_msec) es
+   robusto en headless**: la cadena raw→máquina→output usa _process
+   con real_dt = (now_ms - _last_ms)/1000 en vez de delta. Delta es
+   diminuto en headless --quit-after (LEARNINGS r5 confirmada otra
+   vez) → la producción nunca avanzaba. Con wall-clock, la fábrica
+   produce 8 unidades en ~24s reales verificadas en --quit-after 4000.
+   Resetear _last_ms al unlock para evitar burst de producción
+   acumulada durante el tiempo locked. Origen: smoke --quit-after 600
+   sin output + refactor + smoke --quit-after 4000 con 8 outputs.
+2. **El patrón unlock (GameManager.zone_unlocked + Pad + is_locked)
+   escala a Factory Y Warehouse**: Business (r11), Factory (r12) y
+   Warehouse (r12) comparten el mismo patrón: start_locked +
+   unlock_zone_id + unlock_price + _on_zone_unlocked + _apply_state +
+   Pad hijo. main.gd smoke itera `has_method("is_locked")` y
+   desbloquea todos. Reutilizable para futuros negocios/gates. Origen:
+   smoke r12 desbloquea 4 negocios en un loop.
+3. **Warehouse como buffer de logística conecta al loop sin romper
+   carried**: deposit si carried>0, withdraw si carried==0. La
+   prioridad deposit-primero libera carry_capacity para seguir
+   recogiendo. El jugador puede stockpilear producto del factory/
+   pickup y distribuirlo después a múltiples shelves. Conecta a
+   AUTO-2 (reponedor) naturalmente: el reponedor moverá del almacén
+   a los estantes. Origen: diseño BIZ-5 + conexión a AUTO-2.
+
+### Lecciones de diseño
+1. **5 negocios con precios escalonados dan meta cercana visible
+   constante**: $120 (perfume) → $250 (taller) → $400 (snacks) →
+   $600 (almacén). El jugador siempre tiene 1-2 pads amarillos
+   pulsando a la vista. Cumple §32 "desbloqueo constante" y §25
+   "invierte para crecer". El taller ($250) es el primer negocio
+   "pasivo" (produce solo) — teaser de automatización antes de capa 4.
+2. **El taller es el primer paso de automatización visual**: la
+   máquina produce sola (raw→output) sin input del jugador. El
+   jugador solo recoge el output y lleva al shelf. Esto enseña al
+   jugador "las cosas pueden trabajar solas" antes de AUTO-1/AUTO-2.
+   La barra de progreso amarilla da feedback visual constante de
+   producción (cada 10s pasa algo, §26).
+
+### Lecciones de proceso
+1. **"devin huérfano concurrente" recurre en r12 (3ra ronda seguida)**:
+   al iniciar r12, Main.tscn y main.gd YA tenían integraciones de
+   Factory/Warehouse de una sesión concurrente, pero con property
+   names inconsistentes (max_output vs output_capacity, max_stock vs
+   capacity, business_id en Warehouse sin script que lo soporte). La
+   lección r11 #1 NO se aplicó al START de la sesión. Fix OBLIGATORIO
+   (3ra vez): `taskkill //F //IM devin.exe` al inicio de cada sesión
+   EXCEPTO el controller. Origen: Main.tscn/main.gd ya modificados al
+   arrancar r12.
+2. **Reconciliación > sobreescribir cuando hay sesión concurrente**:
+   en vez de sobreescribir Main.tscn/main.gd con mi versión, alineé
+   mis scripts al patrón que la otra sesión esperaba (Warehouse con
+   is_locked/unlock_zone_id/Pad) y corregí property names en Main.tscn.
+   Resultado: NO se perdió trabajo de la otra sesión, todo quedó
+   consistente. Lección r11 #2 confirmada y aplicada con éxito.
+3. **Stale .godot/global_script_class_cache.cfg puede dar conteos
+   erróneos**: tras añadir scripts con class_name nuevos (Factory,
+   Warehouse), la cache puede no regenerarse en el primer run.
+   Síntoma: Businesses=4 en vez de 5 (Warehouse no contado). Fix:
+   `rm -rf .godot` y re-run. Godot regenera la cache y los class_names
+   se registran. La stale cache NO impide la carga (Godot parsea al
+   instanciar), pero los conteos basados en has_method pueden ser
+   erróneos si el script no se cargó en ese run. Origen: primer run
+   post-add mostró Businesses=4, segundo run (tras rm .godot) mostró 5.
+4. **_process con delta NO es fiable para timers en headless --quit-after
+   (contradicción con sesión concurrente)**: la sesión concurrente
+   claimó que "_process con delta funciona para producción en headless".
+   MI test empírico lo desmiente: con delta-based production,
+   --quit-after 600 produjo 0 unidades; con wall-clock
+   Time.get_ticks_msec(), --quit-after 600 produjo 1 unidad y
+   --quit-after 4000 produjo 8. LEARNINGS r5 confirmada OTRA VEZ: en
+   headless --quit-after, FPS sin cap → delta diminuto → timers basados
+   en delta nunca llegan al umbral. Fix: SIEMPRE usar Time.get_ticks_msec()
+   para timers de producción/spawn en nodos que deben progresar en
+   headless. Origen: smoke --quit-after 600 delta=0 outputs vs
+   wall-clock=1 output.
+

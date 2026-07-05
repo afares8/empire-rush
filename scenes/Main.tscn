@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://main_scene_ter"]
+[gd_scene load_steps=12 format=3 uid="uid://main_scene_ter"]
 
 [ext_resource type="Script" path="res://scripts/game/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2_player"]
@@ -7,6 +7,8 @@
 [ext_resource type="Script" path="res://scripts/game/client_spawner.gd" id="6_spawner"]
 [ext_resource type="PackedScene" path="res://scenes/HUD.tscn" id="8_hud"]
 [ext_resource type="Script" path="res://scripts/ui/mission_guide.gd" id="9_guide"]
+[ext_resource type="PackedScene" path="res://scenes/Factory.tscn" id="10_factory"]
+[ext_resource type="PackedScene" path="res://scenes/Warehouse.tscn" id="11_wh"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -53,6 +55,29 @@ start_locked = true
 unlock_zone_id = "zone_snacks"
 unlock_price = 400.0
 tint = Color(0.85, 0.65, 0.4, 1)
+
+[node name="FactoryBIZ4" parent="World" instance=ExtResource("10_factory")]
+position = Vector2(-380, -240)
+business_id = "biz_factory"
+business_name = "Taller de Confeccion"
+product_name = "camiseta"
+product_value = 5.0
+start_locked = true
+unlock_zone_id = "zone_factory"
+unlock_price = 250.0
+tint = Color(0.6, 0.6, 0.85, 1)
+production_time = 3.0
+output_capacity = 8
+
+[node name="WarehouseBIZ5" parent="World" instance=ExtResource("11_wh")]
+position = Vector2(120, 220)
+business_id = "biz_warehouse"
+business_name = "Almacen Central"
+start_locked = true
+unlock_zone_id = "zone_warehouse"
+unlock_price = 600.0
+tint = Color(0.75, 0.65, 0.4, 1)
+capacity = 20
 
 [node name="ClientSpawner" type="Node2D" parent="World"]
 position = Vector2(0, 0)

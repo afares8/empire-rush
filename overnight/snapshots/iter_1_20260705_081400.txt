@@ -1,0 +1,105 @@
+# Snapshot — Iteración 1 (ronda 12)
+Fecha: 2026-07-05 08:14
+Item(s) trabajados: BIZ-4, BIZ-5
+Estado: completado
+
+Fase actual: A (construyendo MVP)
+Justificación: capa 3 tenía BIZ-4 (taller) y BIZ-5 (almacén) pendientes.
+Ambos cerrados en esta iteración → capa 3 CERRADA. Siguiente: capa 4
+(automatización + upgrades + empleados).
+
+## Cambios
+- scripts/game/factory.gd (NUEVO): Factory Node2D contenedor. Cadena de
+  producción: raw_stock (auto-regen 0.8/s hasta raw_capacity=10) →
+  máquina convierte raw→output a ritmo production_time (2s default, 3s
+  en Main) → output_stock (int, hasta output_capacity=8) → jugador
+  recoge con E del OutputArea (Area2D hijo) y lleva al Shelf hijo.
+  Visual: Machine ColorRect + ProgressFill (barra amarilla) + RawPile
+  (altura escala con raw) + OutputBody (brillo escala con output) +
+  OutputLabel. Patrón unlock idéntico a Business: start_locked +
+  unlock_zone_id + unlock_price + Pad hijo + GameManager.zone_unlocked.
+  Usa wall-clock Time.get_ticks_msec() para producción (LEARNINGS r5:
+  delta es diminuto en headless --quit-after). _last_ms reset al unlock
+  para evitar burst. _process retorna early si locked. API is_locked(),
+  get_shelves(), señales business_unlocked + output_picked_up.
+- scenes/Factory.tscn (NUEVO): Machine + ProgressFill + RawPile +
+  OutputBody + OutputLabel + OutputArea (CollisionShape 70x70) + Shelf
+  (instance) + Pad (instance). load_steps=6.
+- scripts/game/warehouse.gd (NUEVO): Warehouse Area2D. stock/capacity
+  (20). Jugador interactúa con E: si carried>0 deposita
+  (remove_carried → stock += ), si carried==0 y stock>0 recoge
+  (stock -= → add_carried). Buffer de logística. Patrón unlock igual
+  que Factory/Business: start_locked + unlock_zone_id + unlock_price +
+  Pad hijo + GameManager.zone_unlocked. _apply_state apaga monitoring
+  si locked + activa/desactiva pad. Visual: Body ColorRect (fill level
+  + LOCKED gris) + StockLabel "Almacén N/C". API pública deposit(n)/
+  withdraw(n) para smoke headless. Señales stock_changed +
+  business_unlocked.
+- scenes/Warehouse.tscn (NUEVO): Body + StockLabel + AreaShape (90x90)
+  + Pad (instance). load_steps=4.
+- scenes/Main.tscn (modificado): añadidas 2 instancias:
+  - FactoryBIZ4 en (-380,-240): biz_factory, "Taller de Confeccion",
+    camiseta $5, start_locked=true, zone_factory $250, tint azul,
+    production_time=3.0, output_capacity=8.
+  - WarehouseBIZ5 en (120,220): biz_warehouse, "Almacen Central",
+    start_locked=true, zone_warehouse $600, capacity=20, tint ocre.
+  ext_resource Factory.tscn (id 10) + Warehouse.tscn (id 11). load_steps=12.
+- scripts/game/main.gd (modificado): boot report ahora incluye
+  Factory=%s Warehouse=%s. DEVIN_SMOKE desbloquea TODOS los negocios
+  locked (BIZ-2/3/4/5) via GameManager.unlock_zone y pre-llena
+  warehouse stock=10 para validar buffer.
+
+## Verificación
+- Headless run: OK
+  `godot --headless --quit-after 60`:
+    [Business] biz_market ready, locked=false zone=
+    [Business] biz_perfume ready, locked=true zone=zone_perfume
+    [Business] biz_snacks ready, locked=true zone=zone_snacks
+    [Factory] biz_factory ready, locked=true zone=zone_factory
+    [Main] Businesses=5 locked=4
+    [Main] Factory=true Warehouse=true
+    [Main] Active shelves=1/4
+    [Main] ClientSpawner=true
+    [Main] HUD=true MissionGuide=true UnlockPads=5
+- Export HTML5: OK
+  `godot --headless --export-release "HTML5" exports/html5/index.html`
+  genera index.html + index.js + index.pck (81KB) + index.wasm (35MB)
+  sin errores. factory.gd.remap + warehouse.gd.remap incluidos en .pck.
+- Smoke del item: OK
+  `DEVIN_SMOKE=1 godot --headless --quit-after 120`:
+    [Business] biz_perfume unlocked (zone zone_perfume)
+    [Business] biz_snacks unlocked (zone zone_snacks)
+    [Factory] biz_factory unlocked (zone zone_factory)
+    [Warehouse] biz_warehouse unlocked (zone zone_warehouse)
+    [Main] DEVIN_SMOKE: warehouse pre-filled stock=10
+  Los 4 negocios locked se desbloquean via GameManager.unlock_zone.
+  Factory produce usando wall-clock:
+  `DEVIN_SMOKE=1 godot --headless --quit-after 4000`:
+    [Factory] biz_factory produced 1 (output=1/8 raw=9.0)
+    ...
+    [Factory] biz_factory produced 1 (output=8/8 raw=9.0)
+  Produce 8 unidades (llena output_capacity) y para correctamente.
+  El loop está conectado: fábrica output → jugador recoge → shelf →
+  cliente compra → dinero. Almacén: jugador deposita/recoge buffer.
+
+## Próximo item sugerido
+AUTO-1 — Empleado cajero (capa 4). Contratable en un pad, cobra
+automáticamente a los clientes. Es la transición "yo trabajo → mi
+imperio trabaja por mí" que engancha a mediano plazo (BLUEPRINT §32
+"automatización progresiva"). Alternativa: JUICE-1 (polished feel del
+loop base) en paralelo si el feel necesita pulido antes de automatizar.
+
+## Problemas encontrados
+- "devin huérfano concurrente" recurre en r12 (LEARNINGS r11 lección 1):
+  al iniciar r12, Main.tscn y main.gd YA tenían integraciones de
+  Factory/Warehouse de una sesión concurrente, pero con property names
+  que no matcheaban mis scripts (max_output vs output_capacity,
+  max_stock vs capacity, business_id en Warehouse sin script que lo
+  soporte). Reconcilié alineando los scripts al patrón unlock (Warehouse
+  ahora soporta is_locked/unlock_zone_id/Pad) y corrigiendo los property
+  names en Main.tscn. NO se perdió trabajo de la otra sesión — se
+  integró. Lección confirmada: re-leer antes de cada edit y adoptar el
+  estado actual.
+- Factory con delta-based production no producía en headless --quit-after
+  (delta diminuto, LEARNINGS r5). Fix: refactor a wall-clock
+  Time.get_ticks_msec(). Verificado: produce 8 unidades en ~24s reales.
