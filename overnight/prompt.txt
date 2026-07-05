@@ -9,10 +9,67 @@ un idle tycoon / management runner isométrico que sea **adictivo de
 forma sana desde el primer minuto**, MVP exitoso desde el primer
 lanzamiento, exportable a HTML5 (MVP) y luego Android/iOS.
 
-El diseño completo del juego está en `BLUEPRINT.md` (léelo). La
-fuente de verdad de qué construir esta iteración está en
-`ROADMAP.md` (léelo). Las notas de convenciones y anti-patrones están
-en `AGENTS.md` (léelo).
+El diseño completo del juego está en `BLUEPRINT.md` (léelo COMPLETO
+— tiene las 41 secciones del blueprint original). La fuente de verdad
+de qué construir esta iteración está en `ROADMAP.md` (léelo). Las
+notas de convenciones y anti-patrones están en `AGENTS.md` (léelo).
+
+### Qué partes del BLUEPRINT aplican al MVP (CRÍTICO)
+
+El BLUEPRINT.md tiene una tabla al final "Resumen de fases para la
+AI" que marca cada sección como [MVP], [1.0+], [2.0+] o [3.0+].
+**OBSÉRVALA.** Para el MVP, enfócate en:
+
+- **Secciones CRÍTICAS del MVP** (debes cumplirlas sí o sí):
+  - §4 Loop principal (recoger → vender → cobrar → invertir →
+    expandir → automatizar → desbloquear → repetir, cada 5–10s).
+  - §5 Mapa inicial (puesto callejero, primer minuto sin tutorial
+    pesado).
+  - §19 MVP recomendado (1 mapa, 3 negocios, 1 taller, 1 almacén,
+    3 productos, 3 clientes, 3 empleados, 10 zonas, 20 upgrades,
+    3 eventos, 1 ranking simple, 15–30 min de retención).
+  - §25 Diseño del primer minuto (0–10s llena estante, 10–20s
+    primer cliente + dinero, 20–35s recoge + invierte, 35–60s caos
+    + contrata ayuda).
+  - §26 Cómo debe sentirse (rápido, satisfactorio, cada 10s pasa
+    algo, cada 1min desbloquea, cada 5min cambia visualmente).
+  - §32 Qué es lo adictivo (progreso visual inmediato, metas
+    cortas/medianas/largas, dinero visible, desbloqueo constante,
+    automatización progresiva, eventos sorpresa).
+  - §33 Qué cansa (evitar repetición, progreso lento, demasiados
+    ads, pagar obligatorio, falta de meta, todo se ve igual).
+
+- **Secciones del MVP a implementar** (sembrar base, no construir
+  el sistema completo):
+  - §13 Empleados: 3 empleados con rareza y habilidad.
+  - §14 Economía: cash + gems (empire_value y reputación como
+    contadores simples).
+  - §15 Monetización: placeholders de UI (botón "ver ad ×2",
+    tienda placeholder), NO IAP real.
+  - §16 Seguridad: apto todas las edades, sin violencia/apuestas/
+    chat libre.
+  - §23 Métricas: telemetría local (consola) de tiempo de sesión,
+    zonas desbloqueadas, eventos jugados, ads vistos.
+  - §24 Pantallas: juego + HUD + upgrades básico (las demás
+    pantallas son 1.0+).
+  - §30 Monetización detallada: placeholders de UI nada más.
+  - §38 Retención: save local + offline earnings popup (daily
+    login/missions son 1.0+).
+  - §39 Balance: free-to-play justo (pagar acelera, no bloquea).
+
+- **Secciones 1.0+ (NO construir, pero NO bloquear)**: §10 ligas,
+  §11 estatus, §12 personalización, §20 v1.0, §30 monetización
+  real, §31 psicología de pago, §34 comunidad, §36 eventos
+  globales, §37 logros, §40 fatiga, §41 comunidad detallada.
+  Estructura el código para que estas features se puedan agregar
+  después sin rework, pero NO las implementes en el MVP.
+
+- **Secciones 2.0+ y 3.0+ (NO construir)**: §17 social, §18 IA,
+  §21 v2.0, §22 v3.0, §35 visitas. No las toques en el MVP.
+
+**Regla de oro**: si dudas si algo es MVP o 1.0+, NO lo construyas.
+El MVP debe ser jugable y adictivo en 15–30 min. Todo lo que no
+aporte al loop adictivo del MVP se deja para después.
 
 --------------------------------------------------------------------
 PRINCIPIO RECTOR: ADICIÓN SANA DESDE EL PRIMER MINUTO
