@@ -1,0 +1,97 @@
+# Snapshot — Iteración 1 (ronda 12)
+Fecha: 2026-07-05 08:13
+Item(s) trabajados: BIZ-4, BIZ-5
+Estado: completado
+
+Fase actual: A (construyendo MVP)
+Justificación: capa 3 tenía BIZ-4/5 pendientes tras r11/i1 (BIZ-1/2/3
+cerrados). Esta iteración cierra la capa 3 completa. Siguiente: capa 4
+(automatización + upgrades + empleados).
+
+## Cambios
+- scripts/game/factory.gd (NUEVO): Factory Node2D. Cadena de producción
+  raw → máquina → output. raw_stock auto-regen (raw_regen_per_sec),
+  máquina convierte 1 raw → 1 output cada production_time segundos,
+  output_stock acumula hasta output_capacity. OutputArea (Area2D)
+  detecta player, E recoge output con add_carried. ProgressFill barra
+  amarilla. Desbloqueable via pad + GameManager.zone_unlocked. Usa
+  _process con delta (wall-clock fallback para headless). _apply_state
+  apaga monitoring/visible si locked. Shelf hijo para abastecer
+  directamente (conexión fábrica→estante). Pop táctil al producir.
+- scenes/Factory.tscn (NUEVO): Machine (ColorRect gris) + ProgressFill
+  (barra amarilla) + RawPile (pila marrón) + OutputBody (pila azul) +
+  OutputLabel + OutputArea (Area2D 70x70) + Shelf hijo + Pad hijo.
+- scripts/game/warehouse.gd (NUEVO): Warehouse Area2D. Buffer de stock
+  con capacity. Jugador deposita con E si carried>0 (remove_carried),
+  recoge con E si carried==0 y stock>0 (add_carried). API pública
+  deposit/withdraw para smoke headless. Desbloqueable via pad +
+  GameManager.zone_unlocked. add_to_group("warehouses"). Pop táctil.
+  _apply_state apaga monitoring si locked.
+- scenes/Warehouse.tscn (NUEVO): Warehouse Area2D raíz + Body
+  (ColorRect ocre) + StockLabel + AreaShape (90x90) + Pad hijo.
+- scenes/Main.tscn (actualizado): añadidos FactoryBIZ4 (taller,
+  start_locked, zone_factory $250, tint azul, production_time 3s,
+  output_capacity 8) en (-380,-240) y WarehouseBIZ5 (almacén,
+  start_locked, zone_warehouse $600, tint ocre, capacity 20) en
+  (120,220). load_steps 12 (2 ext_resource nuevos).
+- scripts/game/main.gd (actualizado): verificación reporta
+  Businesses=5 (3 Business + Factory + Warehouse), Factory/Warehouse
+  bool, UnlockPads=5. DEVIN_SMOKE ahora desbloquea TODOS los bizs
+  locked (BIZ-2/3/4/5) con GameManager.unlock_zone y pre-llena
+  warehouse stock=10 para validar buffer.
+
+## Verificación
+- Headless run: OK
+  `godot --headless --quit-after 120`:
+    [Business] biz_market ready, locked=false zone=
+    [Business] biz_perfume ready, locked=true zone=zone_perfume
+    [Business] biz_snacks ready, locked=true zone=zone_snacks
+    [Factory] biz_factory ready, locked=true zone=zone_factory
+    [Main] Businesses=5 locked=4
+    [Main] Factory=true Warehouse=true
+    [Main] Active shelves=1/4
+    [Main] HUD=true MissionGuide=true UnlockPads=5
+  5 negocios cargados (3 Business + Factory + Warehouse), 4 locked
+  (BIZ-2/3/4/5), 5 pads. Sin crashes.
+- Export HTML5: OK
+  `godot --headless --export-release "HTML5" exports/html5/index.html`
+  genera index.html (4.8KB) + index.js (331KB) + index.pck (81KB) +
+  index.wasm (35MB) sin errores. factory.gd.remap + warehouse.gd.remap
+  incluidos en el .pck.
+- Smoke del item: OK
+  `DEVIN_SMOKE=1 godot --headless --quit-after 180`:
+    [Business] biz_perfume unlocked (zone zone_perfume)
+    [Business] biz_snacks unlocked (zone zone_snacks)
+    [Factory] biz_factory unlocked (zone zone_factory)
+    [Warehouse] biz_warehouse unlocked (zone zone_warehouse)
+    [Main] DEVIN_SMOKE: warehouse pre-filled stock=10
+  Los 4 negocios locked se desbloquean correctamente via
+  GameManager.unlock_zone. El warehouse recibe stock=10. La fábrica
+  tiene Shelf hijo para abastecer. El loop fábrica→output→jugador→
+  estante→cliente→dinero está conectado.
+
+## Próximo item sugerido
+AUTO-1 — Empleado cajero. Contratable en un pad, cobra automáticamente
+a los clientes sin que el jugador haga click. Es el primer item de
+capa 4 (automatización) y cierra el 4to beat del MissionGuide
+("Contrata ayuda") que quedó colgado en r8 (LEARNINGS r10 diseño #3).
+
+## Problemas encontrados
+- CRÍTICO — "devin huérfano concurrente" recurre en r12 (LEARNINGS
+  r11 lección proceso #1 NO aplicada): al iniciar r12 había una sesión
+  concurrente que sobreescribió factory.gd, warehouse.gd, Factory.tscn,
+  Warehouse.tscn con sus propias versiones MÁS completas (raw_stock,
+  progress bar, deposit/withdraw API) mientras yo escribía las mías.
+  Detecté el conflicto cuando mi warehouse.gd (Node2D) fue
+  reemplazado por el de la otra sesión (Area2D) y el print de _ready
+  no aparecía. Solución: adopté las versiones de la otra sesión (más
+  completas y ya consistentes con las escenas) en vez de forzar las
+  mías. Las escenas Main.tscn y main.gd mantuvieron mis edits
+  (DEVIN_SMOKE con unlock all + warehouse pre-fill). Resultado: árbol
+  consistente, headless OK, export OK.
+- Nota menor: la cache .godot/global_script_class_cache.cfg estaba
+  stale (sin Factory/Warehouse class_names). Tras rm -rf .godot y
+  re-run, Godot la regeneró y ambos scripts cargaron. La stale cache
+  NO impide la carga (Godot parsea los scripts al instanciar), pero
+  puede causar conteos erróneos en el primer run (Businesses=4 en
+  vez de 5). Fix: borrar .godot si los conteos no cuadran.

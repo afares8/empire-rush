@@ -1,0 +1,64 @@
+[gd_scene load_steps=6 format=3 uid="uid://factory_scene_ter"]
+
+[ext_resource type="Script" path="res://scripts/game/factory.gd" id="1_fac"]
+[ext_resource type="PackedScene" path="res://scenes/Shelf.tscn" id="2_shelf"]
+[ext_resource type="PackedScene" path="res://scenes/UnlockPad.tscn" id="3_pad"]
+
+[sub_resource type="RectangleShape2D" id="rect_output"]
+size = Vector2(70, 70)
+
+[node name="Factory" type="Node2D"]
+script = ExtResource("1_fac")
+
+[node name="Machine" type="ColorRect" parent="."]
+offset_left = -28.0
+offset_top = -28.0
+offset_right = 28.0
+offset_bottom = 28.0
+color = Color(0.6, 0.6, 0.85, 0.9)
+
+[node name="ProgressFill" type="ColorRect" parent="."]
+offset_left = -28.0
+offset_top = 18.0
+offset_right = 28.0
+offset_bottom = 26.0
+color = Color(1, 0.85, 0.2, 0.9)
+
+[node name="RawPile" type="ColorRect" parent="."]
+offset_left = -12.0
+offset_top = -20.0
+offset_right = 12.0
+offset_bottom = 20.0
+color = Color(0.5, 0.4, 0.3, 0.85)
+
+[node name="OutputBody" type="ColorRect" parent="."]
+offset_left = 40.0
+offset_top = -20.0
+offset_right = 80.0
+offset_bottom = 20.0
+color = Color(0.6, 0.6, 0.85, 0.5)
+
+[node name="OutputLabel" type="Label" parent="."]
+offset_left = 38.0
+offset_top = -44.0
+offset_right = 82.0
+offset_bottom = -28.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 11
+text = "0/8"
+horizontal_alignment = 1
+
+[node name="OutputArea" type="Area2D" parent="."]
+position = Vector2(60, 0)
+
+[node name="OutputShape" type="CollisionShape2D" parent="OutputArea"]
+shape = SubResource("rect_output")
+
+[node name="Shelf" parent="." instance=ExtResource("2_shelf")]
+position = Vector2(140, 0)
+
+[node name="Pad" parent="." instance=ExtResource("3_pad")]
+position = Vector2(40, 110)
+visible = true
