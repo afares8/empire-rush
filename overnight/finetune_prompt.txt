@@ -1,0 +1,257 @@
+====================================================================
+TRADE EMPIRE RUSH — SESIÓN DE FINE-TUNING DEL OVERNIGHT (Ronda <ROUND>)
+====================================================================
+Tu rol AHORA no es construir features. Es ANALIZAR cómo fueron las 5
+rondas de overnight que acaban de terminar, EXTRAER LECCIONES
+concretas, ACTUALIZAR la memoria del sistema (LEARNINGS.md),
+RE-PRIORIZAR el ROADMAP.md, y —lo más importante para el usuario—
+PRODUCIR UN INFORME FINAL DE MEJORAS Y PRÓXIMOS PASOS.
+
+Esto es lo que hace que el overnight sea "realmente inteligente":
+cada ronda deja lecciones acumulativas que la siguiente ronda (si se
+corre otro overnight) leerá antes de trabajar.
+
+--------------------------------------------------------------------
+PASO 0 — CONTEXTO
+--------------------------------------------------------------------
+1. La variable de entorno `DEVIN_OVERNIGHT_ROUND` tiene el número de
+   ronda (5). La variable `DEVIN_OVERNIGHT_LOGDIR` apunta a
+   `overnight/logs/` con los logs de las 5 rondas.
+2. Lee `overnight/LEARNINGS.md` (memoria acumulativa de lecciones
+   previas — solo la ronda 0 del setup inicial).
+3. Lee `BLUEPRINT.md` (diseño completo del juego).
+4. Lee `ROADMAP.md` (estado actual del backlog y completados).
+5. Lee `AGENTS.md` (convenciones y anti-patrones).
+6. Lista los logs de las 5 rondas en `$DEVIN_OVERNIGHT_LOGDIR`:
+   los archivos `r*_iter_*.log`. Lee los resúmenes ejecutivos
+   (sección "## Resumen — Iteración N") de cada log. Si los logs
+   son muy largos, lee las últimas ~200 líneas de cada uno (donde
+   está el resumen).
+7. Lee los snapshots en `overnight/snapshots/iter_*.txt` — son la
+   fuente de verdad de qué se hizo en cada iteración.
+8. Corre `git log --oneline -30` para ver el historial de commits
+   de las 5 rondas.
+
+--------------------------------------------------------------------
+PASO 1 — ANALIZAR LAS 5 RONDAS (qué pasó, no qué debería pasar)
+--------------------------------------------------------------------
+Para cada ronda (1 a 5), determina:
+
+1. **¿Qué items del roadmap se intentaron?** ¿Se completaron o
+   quedaron a medio camino? Si quedaron a medio, ¿por qué (timeout,
+   complejidad subestimada, dependencia oculta, Godot no instalado,
+   bug bloqueante)?
+
+2. **¿Hubo iteraciones "fix-first"** (headless run roto en el gate
+   que consumió toda la iteración)? ¿Cuántas? ¿Es un patrón
+   recurrente entre rondas?
+
+3. **¿Hubo timeouts** de sesión? ¿En qué item? ¿Indica que el item
+   es demasiado grande para 1 iteración y debería dividirse?
+
+4. **¿Qué items del roadmap NO se tocaron** porque las rondas se
+   fueron por otro lado? ¿El orden de capas (1→6) se respetó?
+
+5. **¿Aparecieron anti-patrones** que el prompt prohíbe pero que
+   Devin hizo igual? (loops de subagentes, features isla, contenido
+   antes del loop, C# en vez de GDScript, etc.)
+
+6. **¿Se generaron snapshots** en `overnight/snapshots/` para cada
+   iteración? Si falta alguno, anótalo como problema de proceso.
+
+7. **¿El export HTML5 funciona** al final de las 5 rondas? Si no,
+   es CRÍTICO — el MVP no es jugable en navegador.
+
+8. **¿El loop adictivo se siente bien**? Esta es la pregunta más
+   importante. Si el loop no engancha en 60 segundos, el MVP no es
+   "éxito desde el primer lanzamiento". Sé honesto y crítico.
+
+--------------------------------------------------------------------
+PASO 2 — EXTRAER LECCIONES (concretas, accionables, no genéricas)
+--------------------------------------------------------------------
+Genera 5–10 lecciones NUEVAS. Cada lección debe ser:
+
+- **Específica**: "El item GODOT-1 tardó 3 iteraciones porque la
+  descarga del zip de Godot falló por red inestable → agregar
+  instrucción de retry o mirror" NO "hay que planificar mejor".
+- **Accionable**: la siguiente ronda (si se corre otro overnight)
+  puede hacer algo distinto gracias a esta lección.
+- **Verificable**: cita qué log/iteración/snapshot la originó.
+
+Categoriza las lecciones:
+- **LECCIONES DE PROCESO**: cómo el overnight trabajó (timing,
+  orden, anti-patrones, snapshots).
+- **LECCIONES TÉCNICAS**: Godot, GDScript, export HTML5, assets,
+  performance.
+- **LECCIONES DE DISEÑO**: loop adictivo, feel, balance, juice,
+  MVP scope.
+
+--------------------------------------------------------------------
+PASO 3 — ACTUALIZAR LEARNINGS.md
+--------------------------------------------------------------------
+Append a `overnight/LEARNINGS.md` una nueva sección:
+
+```
+## Ronda 5 — Fine-tuning (fecha)
+
+### Resumen de las 5 rondas
+- Items completados: <N>
+- Items en progreso: <N>
+- Items no tocados: <N>
+- Export HTML5: OK / FAIL
+- Loop adictivo se siente: SÍ / NO / PARCIAL
+
+### Lecciones de proceso
+1. <lección>
+2. <lección>
+
+### Lecciones técnicas
+1. <lección>
+2. <lección>
+
+### Lecciones de diseño
+1. <lección>
+2. <lección>
+```
+
+NO sobrescribas el contenido existente. Append al final.
+
+--------------------------------------------------------------------
+PASO 4 — RE-PRIORIZAR ROADMAP.md
+--------------------------------------------------------------------
+Si las lecciones indican que el orden de prioridad del ROADMAP debe
+cambiar (ej: un item resultó más bloqueante de lo esperado, o un
+item se reveló innecesario para el MVP), reordena el backlog. Justifica
+el reorden en un comentario al top del ROADMAP:
+
+```
+> Re-priorizado por fine-tuning ronda 5: <razón>
+```
+
+Si hay items nuevos que deberían agregarse para la versión 1.0
+(basados en el gap entre el MVP entregado y el BLUEPRINT.md),
+ agrégalos en una nueva sección `## 🎯 FASE 2 — Versión 1.0`.
+
+--------------------------------------------------------------------
+PASO 5 — INFORME FINAL DE MEJORAS Y PRÓXIMOS PASOS (CRÍTICO)
+--------------------------------------------------------------------
+El usuario pidió explícitamente: "que la ai pueda ser tan autonoma
+que primero cree la app despues la pruebe y diga como puedo mejora
+que mas puedo hacer". Este paso es el que cumple esa promesa.
+
+Escribe un archivo `overnight/FINAL_REPORT.md` con esta estructura:
+
+```markdown
+# Trade Empire Rush — Informe Final del Overnight (5 rondas)
+
+## Estado del MVP
+- **Lo que se construyó**: <lista de features completadas, por capa>
+- **Lo que no se construyó**: <items del ROADMAP que quedaron pendientes>
+- **Export HTML5**: <OK/FAIL + ruta al index.html si OK>
+- **Cómo probarlo**: <comandos exactos para correr el juego>
+
+## ¿Es adictivo desde el primer minuto? (honesto)
+- **Loop se siente**: <SÍ/NO/PARCIAL + por qué>
+- **Satisfacción táctil**: <evaluación del feedback visual/sonoro>
+- **Progreso visible**: <evaluación>
+- **Meta cercana siempre visible**: <evaluación>
+- **Veredicto**: <"MVP listo para lanzar" / "Necesita N rondas más
+  de pulido en X" / "Necesita rework de Y">
+
+## Cómo puedo mejorar el MVP (recomendaciones accionables)
+1. **<mejora>** — <por qué impacta en adicción/retención> —
+   <esfuerzo estimado S/M/L>
+2. **<mejora>** — <por qué> — <esfuerzo>
+... (8–15 mejoras, ordenadas por impacto/esfuerzo)
+
+## Qué más puedo hacer (roadmap a versión 1.0 y más allá)
+### Versión 1.0 (post-MVP)
+- <item> — <por qué>
+- <item>
+
+### Versión 2.0
+- <item>
+
+### Versión 3.0
+- <item>
+
+### Lanzamiento mobile (Android/iOS)
+- <pasos concretos: export presets, keystore, App Store Connect,
+  Google Play Console, IAP, ads reales, etc.>
+
+## Métricas a medir desde el día 1
+- <lista del blueprint sección 22 + cómo implementarlas>
+
+## Riesgos y mitigaciones
+- <riesgo> — <mitigación>
+
+## Próximos pasos recomendados (esta semana)
+1. <paso>
+2. <paso>
+3. <paso>
+```
+
+Sé HONESTO y CRÍTICO en este informe. Si el MVP no es adictivo, dilo.
+Si el loop no se siente bien, dilo. Si faltan 3 rondas más de
+pulido, dilo. El usuario quiere la verdad, no validación falsa.
+
+--------------------------------------------------------------------
+PASO 6 — SNAPSHOT DEL FINE-TUNING
+--------------------------------------------------------------------
+Escribe `overnight/snapshots/finetune_r<ROUND>_<timestamp>.txt`:
+
+```
+# Snapshot — Fine-tuning ronda <ROUND>
+Fecha: <timestamp>
+
+## Lecciones extraídas
+- <lista>
+
+## Cambios al ROADMAP
+- <cambios>
+
+## Veredicto del MVP
+- <SÍ/NO/PARCIAL + razón>
+
+## Próximo item sugerido (si se corre otra ronda)
+<ID> — <título>
+```
+
+--------------------------------------------------------------------
+PASO 7 — ENTREGA EN STDOUT
+--------------------------------------------------------------------
+Al terminar, escribe en stdout (el usuario lo verá al final del
+controlador):
+
+```
+## FINE-TUNING COMPLETADO — Ronda <ROUND>
+
+### Resumen de las 5 rondas
+- Items completados: <N>
+- Export HTML5: <OK/FAIL>
+- MVP adictivo: <SÍ/NO/PARCIAL>
+
+### Top 5 lecciones
+1. <lección>
+2. <lección>
+3. <lección>
+4. <lección>
+5. <lección>
+
+### Top 5 mejoras recomendadas
+1. <mejora>
+2. <mejora>
+3. <mejora>
+4. <mejora>
+5. <mejora>
+
+### Veredicto
+<1-2 frases honestas sobre el estado del MVP>
+
+### Informe completo
+Ver `overnight/FINAL_REPORT.md`
+```
+
+NO corras `git commit` — el controller hace el commit final.
+
+====================================================================

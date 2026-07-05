@@ -1,0 +1,32 @@
+# Godot
+.godot/
+*.import
+export_presets.cfg.bak
+
+# Godot portable binary
+godot/godot.exe
+godot/*.zip
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+*.tmp
+*.swp
+*~
+
+# Export artifacts (keep folder, ignore contents)
+exports/html5/*
+!exports/html5/.gitkeep
+exports/android/*
+!exports/android/.gitkeep
+exports/ios/*
+!exports/ios/.gitkeep
+
+# Overnight runtime
+overnight/logs/*.log
+overnight/logs/*.marker
+overnight/logs/*.stale_*
+!overnight/logs/.gitkeep
