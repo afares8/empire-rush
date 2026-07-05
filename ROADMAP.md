@@ -8,7 +8,9 @@
 > hechos 2 veces y perdidos 2 veces. La próxima ronda DEBE:
 > (1) fixear el controller (commit WIP cada 10 min + timeout 90 min),
 > (2) re-hacer BIZ-1/2/3 (el patrón `Business` ya está validado en
-> r10 log — 1 iteración), (3) cerrar BIZ-4/5 antes de tocar capa 4.
+> r10 log — 1 iteración), (3) cerrar BIZ-4/5 antes de tocar capa 4,
+> (4) JUICE-1 + POLISH-2/3/5/6 (juice del loop base, 2 iter) en
+> paralelo con capa 3 — sin juice el loop no engancha (§32.1).
 > Orden de capas 3→4→5 se mantiene. No saltar a Fase B hasta cerrar.
 
 > **Re-priorizado por fine-tuning ronda 5 (2026-07-05)**: EXP-1
@@ -105,15 +107,9 @@ lanzamiento.**
 
 ### Capa 3 — Contenido MVP (3 negocios + taller + almacén)
 
-- [ ] **BIZ-1** (P1, M) — Puesto callejero (negocio inicial).
-  Producto: camisetas. Mesa + estante + caja manual. Precio de
-  venta bajo. Criterio: el puesto funciona con el loop completo.
-- [ ] **BIZ-2** (P1, M) — Estante de perfumes (segundo negocio,
-  desbloqueable). Producto: perfumes pequeños. Precio de venta
-  medio. Criterio: se desbloquea y funciona.
-- [ ] **BIZ-3** (P1, M) — Mini market (tercer negocio,
-  desbloqueable). Producto: snacks. Alta rotación, precio bajo.
-  Criterio: se desbloquea y funciona.
+> BIZ-1/2/3 completados en r11/i1 (ver `## Completados`). Quedan
+> BIZ-4 (taller) y BIZ-5 (almacén) para cerrar la capa 3.
+
 - [ ] **BIZ-4** (P1, M) — Mini taller/fábrica. Materia prima →
   máquina → producto terminado → enviar a estante. Simple visual.
   Criterio: la fábrica produce y abastece un estante.
@@ -377,6 +373,23 @@ lanzamiento.**
   Instanciado en Main.tscn. Añadido signal `money_collected` a
   Economy (distingue ingreso de gasto). Headless: MissionGuide
   carga, setup via call_deferred conecta a shelves/pads/Economy.
+- [x] **BIZ-1** (P1, M, r11/i1) — Puesto callejero (camisetas, $5).
+  `scripts/game/business.gd` (Business Node2D contenedor: business_id,
+  product_name, product_value, start_locked, unlock_zone_id,
+  unlock_price, tint; _apply_state marca shelves locked, apaga
+  pickups, reactiva pad; escucha GameManager.zone_unlocked) +
+  `scenes/Business.tscn` (Pickup + Shelf + UnlockPad hijos).
+  BusinessBIZ1 en Main.tscn, unlocked, tint verde. Headless OK,
+  export HTML5 OK.
+- [x] **BIZ-2** (P1, M, r11/i1) — Estante de perfumes ($15,
+  desbloqueable). BusinessBIZ2 en Main.tscn, start_locked=true,
+  zone_perfume $120, tint rosa. Al desbloquear la zona,
+  _on_zone_unlocked reactiva shelves/pickups. DEVIN_SMOKE verifica
+  unlock flow. Headless OK, export HTML5 OK.
+- [x] **BIZ-3** (P1, M, r11/i1) — Mini market snacks ($3, alta
+  rotación, desbloqueable). BusinessBIZ3 en Main.tscn,
+  start_locked=true, zone_snacks $400, tint naranja. Mismo patrón
+  que BIZ-2. Headless OK, export HTML5 OK.
 
 ---
 

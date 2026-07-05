@@ -1,0 +1,80 @@
+# Snapshot — Fine-tuning ronda 10
+Fecha: 20260705_075210
+
+## Lecciones extraídas
+
+### Proceso
+1. CRÍTICO: el fix del controller recomendado en r5 (lección #1)
+   NUNCA se aplicó. El anti-patrón `Reset-FailedIteration` volvió
+   a golpear en r9 (BIZ-1) y r10 (BIZ-1/2/3). 5 rondas de trabajo
+   acumuladas perdidas (r3, r4, r5, r9, r10). El overnight no es
+   "inteligente" entre rondas porque sus lecciones no se aplican.
+2. El timeout de 45 min es estructuralmente incompatible con items
+   M: el wrapper PowerShell se cuelga esperando stdout de devin
+   DESPUÉS de que devin terminó. Fix: done-marker desde el prompt
+   del devin + timeout 90 min.
+3. Devin huérfano concurrente recurre (3ra vez): r6 y r10 reportan
+   sesiones concurrentes sobrescribiendo archivos. Fix:
+   `taskkill //F //IM devin.exe` al inicio de cada ronda.
+4. Working tree stale entre rondas: r7 y r10 encontraron WIP no
+   commiteado de sesión anterior. Fix: `git reset --hard` al inicio
+   de cada ronda (después de commitear WIP previo).
+5. Solo 1 iteración por ronda en 5 rondas consecutivas: el overnight
+   opera a 1/5 de su capacidad teórica por el timeout + buffer hang.
+
+### Técnicas
+1. Abstracción `Business` Node2D (contenedor con product_value,
+   start_locked, unlock_zone_id) escala: BIZ-2/3 sin código nuevo.
+   Preservar al re-hacer.
+2. Reusar pads existentes como gate de negocio funciona (r10 usó
+   UnlockPadA como gate para BusinessMarket).
+3. `client_spawner` debe filtrar shelves de negocios locked (r10).
+4. Export HTML5 estable desde r8, se mantiene verde sin intervención.
+
+### Diseño
+1. El loop sigue SIN sentirse adictivo después de 10 rondas: falta
+   juice (JUICE-1/POLISH-2), contenido (BIZ-1/2/3 perdidos), balance
+   (POLISH-6), validación en navegador.
+2. Sin validación de feel en navegador, el smoke miente: nadie abrió
+   index.html para validar §25. Todo es headless.
+3. El 4to beat del MissionGuide (HIRE_HELP) está roto: no hay
+   empleados. Cambiar a "Desbloquea segundo negocio" hasta AUTO-1.
+4. El MVP está a ~8-10 iter de lanzar PERO solo si el controller se
+   fixea. El fix del controller es el blocker #1.
+
+## Cambios al ROADMAP
+- Re-priorización r10 agregada al top: (1) fix controller, (2)
+  BIZ-1/2/3, (3) BIZ-4/5, (4) JUICE-1 + POLISH-2/3/5/6 en paralelo
+  con capa 3.
+- Re-priorización r5 mantenida (EXP-1 P0, ya completado en r8).
+- BIZ-1/2/3 siguen [ ] (perdidos por reset, no en git).
+- No se agregaron items nuevos a Fase C (V1-1..23 ya listados desde
+  r5).
+
+## Veredicto del MVP
+- **PARCIAL** — el cimiento es sólido (capa 1 + 1.5 + capa 2
+  completas en git, export HTML5 verde, headless run OK) PERO el
+  MVP no es adictivo hoy: sin contenido (solo 1 negocio placeholder),
+  sin juice (recoger dinero silencioso), sin balance, sin validación
+  de feel en navegador, y el 4to beat del primer minuto roto.
+- Necesita 3-5 rondas más CON el controller arreglado para cerrar
+  capa 3 + juice + balance + smoke navegador.
+- El blocker #1 no es técnico, es de proceso: el controller destruye
+  trabajo. Sin fixearlo, el overnight nunca converge.
+
+## Próximo item sugerido (si se corre otra ronda)
+1. **FIX-CONTROLLER** (no es item de ROADMAP, es fix de proceso):
+   editar `overnight/session.ps1` y `overnight/run_overnight.ps1`
+   para commitear WIP cada 10 min + done-marker desde el prompt +
+   timeout 90 min + taskkill devin.exe al inicio + git reset al
+   inicio de cada ronda. Commitear como `fix(controller): preserve
+   work across timeouts`. SIN ESTO, NO CORRER MÁS RONDAS.
+2. **BIZ-1/2/3** — Re-hacer los 3 negocios siguiendo el patrón
+   `Business` de r10 (business.gd + Business.tscn + 3 instancias en
+   Main.tscn). 1 iteración con el controller arreglado.
+3. **JUICE-1** — Partículas + sonido placeholder + fly-to-HUD al
+   recoger dinero. Es lo que más impacta la satisfacción táctil.
+4. **POLISH-2/3/5/6** — Cash volando al HUD + screen shake al
+   desbloquear + meta cercana en HUD + balance de precios.
+5. **Fix 4to beat MissionGuide** — HIRE_HELP → "Desbloquea segundo
+   negocio" hasta que AUTO-1 exista.
