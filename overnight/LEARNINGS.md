@@ -533,3 +533,62 @@
    headless. Origen: smoke --quit-after 600 delta=0 outputs vs
    wall-clock=1 output.
 
+## Ronda 13 — iter 1 (2026-07-05 08:24)
+
+### Resumen
+- Items completados Y commiteados (pending commit): 1 — AUTO-1
+  (empleado cajero). Capa 4 abierta (1/8: AUTO-1 done, quedan
+  AUTO-2, UPG-1..5, EMP-1).
+- Headless run OK, Export HTML5 OK. MVP jugable en navegador con
+  cajero contratable en biz_market ($100) que auto-cobra clientes.
+
+### Lecciones técnicas
+1. **Cashier NO debe reusar GameManager.unlock_zone para el estado
+   "contratado"**: MissionGuide escucha zone_unlocked para avanzar
+   sus beats (UNLOCK_ZONE → HIRE_HELP). Si el cajero registrara su
+   contratación como zona, MissionGuide avanzaría al beat HIRE_HELP
+   prematuramente o se desincronizaría. Fix: estado local `_hired`
+   + señal propia `hired(business_id)`. El sistema de zonas es solo
+   para desbloqueo de negocios, no para empleados. Origen: diseño
+   AUTO-1 + revisión mission_guide.gd.
+2. **call_deferred para resolver shelves del negocio objetivo**:
+   Cashier._ready necesita los shelves del Business objetivo, pero
+   los hijos del Business pueden no estar todos listos en el
+   _ready del Cashier (orden de carga). call_deferred(
+   "_resolve_target_shelves") corre después de que todo el árbol
+   _ready terminó → shelves disponibles. Lección r8 #2
+   (call_deferred para setup de siblings) confirmada y reusada.
+3. **Bifurcación mínima en client._do_buy preserva el loop sin
+   cajero**: `if shelf.has_cashier_service(): Economy.add_cash
+   else: _spawn_money_drop`. Solo 4 líneas, no rompe el path
+   existente (negocios sin cajero siguen soltando MoneyDrop al
+   piso para que el jugador recoja). El duck-typing
+   (has_method("has_cashier_service")) evita dependencia de
+   class_name Shelf. Origen: implementación AUTO-1.
+4. **Stale .godot cache tras añadir class_name Cashier**: confirmado
+   LEARNINGS r12 lección 3. `rm -rf .godot` antes del primer run
+   post-add para que el class_name se registre y el conteo
+   has_method sea correcto. Sin rm, Cashiers=0 en boot report.
+
+### Lecciones de diseño
+1. **El cajero es la primera automatización que libera al jugador
+   de micro-tareas**: sin cajero, el jugador debe recoger cada
+   billete del piso (satisfactorio al inicio, tedioso a los 5 min).
+   Con cajero, el dinero del biz_market va directo al HUD — el
+   jugador puede enfocarse en reponer, desbloquear nuevos negocios
+   y contratar más ayuda. Cumple §32 "automatización progresiva"
+   y §26 "cada 5min cambia visualmente" (de recoger a observar).
+2. **$100 es un precio de contratación accesible a los 2-3 min**:
+   con camiseta $5 y ~1 cliente/3s, el jugador acumula ~$100 en
+   2-3 min. Es la primera meta de mediano plazo después de
+   desbloquear perfume ($120). El pulso azul del pad de contratación
+   da meta cercana visible constante. Balance real se ajusta en
+   POLISH-6.
+
+### Lecciones de proceso
+1. **Sin sesiones concurrentes en r13**: a diferencia de r11/r12,
+   no hubo devin huérfano concurrente esta vez. Los edits no
+   fallaron por string no encontrado. El cleanup al inicio de la
+   sesión (implícito o explícito) funcionó. Lección r11/r12 #1
+   aplicada (o no recurrió).
+

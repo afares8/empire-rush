@@ -104,9 +104,16 @@ func _do_buy() -> void:
 	var val: float = product_value
 	if "product_value" in target_shelf and target_shelf.product_value > 0.0:
 		val = target_shelf.product_value
-	_spawn_money_drop(taken, val)
-	emit_signal("bought", val * float(taken))
-	print("[Client] bought %d unit(s) from %s, dropped $%d" % [taken, target_shelf.name, int(val * float(taken))])
+	var total: float = val * float(taken)
+	# AUTO-1: si el estante tiene cajero, el cobro es automático al
+	# Economy (sin MoneyDrop al piso). El jugador no necesita recoger.
+	if target_shelf.has_method("has_cashier_service") and target_shelf.has_cashier_service():
+		Economy.add_cash(total)
+		print("[Client] bought %d unit(s) from %s, cashier auto-collected $%d" % [taken, target_shelf.name, int(total)])
+	else:
+		_spawn_money_drop(taken, val)
+		print("[Client] bought %d unit(s) from %s, dropped $%d" % [taken, target_shelf.name, int(total)])
+	emit_signal("bought", total)
 	# Pop táctil al comprar.
 	var tw: Tween = create_tween()
 	tw.tween_property(_body, "scale", Vector2(1.2, 0.8), 0.07).set_trans(Tween.TRANS_SINE)

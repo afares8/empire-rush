@@ -112,9 +112,6 @@ lanzamiento.**
 
 ### Capa 4 — Automatización + upgrades + empleados
 
-- [ ] **AUTO-1** (P1, M) — Empleado cajero. Contratable en un pad.
-  Cobra automáticamente a los clientes (sin que el jugador haga
-  click). Criterio: con el empleado, los clientes pagan solos.
 - [ ] **AUTO-2** (P1, M) — Empleado reponedor. Mueve producto del
   almacén a los estantes automáticamente. Criterio: los estantes se
   reponen solos.
@@ -402,6 +399,25 @@ lanzamiento.**
   (Body + StockLabel + AreaShape + Pad hijo). WarehouseBIZ5 en
   Main.tscn, start_locked=true, zone_warehouse $600, capacity=20.
   Headless: unlock + pre-fill stock=10 verificados. Export HTML5 OK.
+- [x] **AUTO-1** (P1, M, r13/i1) — Empleado cajero. `scripts/game/
+  cashier.gd` (Cashier Area2D: target_business_id + hire_price, pad
+  de contratación con pulso azul, try_hire() gasta cash y marca
+  _hired, _apply_state setea has_cashier=true en los shelves del
+  negocio objetivo; NO reusa GameManager.unlock_zone para no
+  interferir con MissionGuide; gate por negocio bloqueado: si el
+  negocio objetivo está locked, el cajero se oculta hasta
+  business_unlocked; try_hire resuelve shelves sincrónico si el
+  call_deferred pendiente) + `scenes/Cashier.tscn` (Body +
+  PriceLabel + PromptLabel + AreaShape 80x80). 3 instancias en
+  Main.tscn: CashierBIZ1 (-120,60) biz_market $100, CashierBIZ2
+  (240,-100) biz_perfume $200, CashierBIZ3 (-280,260) biz_snacks
+  $150. shelf.gd añade var has_cashier + has_cashier_service().
+  client.gd _do_buy: si el shelf tiene cajero → Economy.add_cash
+  directo (sin MoneyDrop), else → MoneyDrop al piso como antes.
+  Headless: DEVIN_SMOKE contrata los 3 cajeros y clientes compran
+  con "cashier auto-collected $5" verificado (--quit-after 8000,
+  múltiples compras auto-colectadas, sin MoneyDrop en shelves con
+  cajero). Export HTML5 OK (cashier.gd.remap en .pck 88KB).
 
 ---
 

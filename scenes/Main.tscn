@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://main_scene_ter"]
+[gd_scene load_steps=13 format=3 uid="uid://main_scene_ter"]
 
 [ext_resource type="Script" path="res://scripts/game/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2_player"]
@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://scripts/ui/mission_guide.gd" id="9_guide"]
 [ext_resource type="PackedScene" path="res://scenes/Factory.tscn" id="10_factory"]
 [ext_resource type="PackedScene" path="res://scenes/Warehouse.tscn" id="11_wh"]
+[ext_resource type="PackedScene" path="res://scenes/Cashier.tscn" id="12_cash"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -78,6 +79,24 @@ unlock_zone_id = "zone_warehouse"
 unlock_price = 600.0
 tint = Color(0.75, 0.65, 0.4, 1)
 capacity = 20
+
+[node name="CashierBIZ1" parent="World" instance=ExtResource("12_cash")]
+position = Vector2(-120, 60)
+target_business_id = "biz_market"
+hire_price = 100.0
+cashier_name = "Cajero del Puesto"
+
+[node name="CashierBIZ2" parent="World" instance=ExtResource("12_cash")]
+position = Vector2(240, -100)
+target_business_id = "biz_perfume"
+hire_price = 200.0
+cashier_name = "Cajero de Perfumes"
+
+[node name="CashierBIZ3" parent="World" instance=ExtResource("12_cash")]
+position = Vector2(-280, 260)
+target_business_id = "biz_snacks"
+hire_price = 150.0
+cashier_name = "Cajero del Mini Market"
 
 [node name="ClientSpawner" type="Node2D" parent="World"]
 position = Vector2(0, 0)
