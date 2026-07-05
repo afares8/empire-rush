@@ -112,20 +112,12 @@ lanzamiento.**
 
 ### Capa 4 — Automatización + upgrades + empleados
 
+> UPG-1..5 cerrados en r14/i1 (ver `## Completados`). Siguiente:
+> AUTO-2 (reponedor) o EMP-1 (rareza de empleados).
+
 - [ ] **AUTO-2** (P1, M) — Empleado reponedor. Mueve producto del
   almacén a los estantes automáticamente. Criterio: los estantes se
   reponen solos.
-- [ ] **UPG-1** (P1, S) — Upgrade de velocidad del jugador. Pad de
-  upgrade que aumenta la velocidad de movimiento. Criterio: el
-  upgrade aplica y se nota.
-- [ ] **UPG-2** (P1, S) — Upgrade de capacidad de carga. Más
-  unidades por viaje. Criterio: el upgrade aplica.
-- [ ] **UPG-3** (P1, S) — Upgrade de capacidad del estante. Más
-  stock máximo. Criterio: el upgrade aplica.
-- [ ] **UPG-4** (P1, S) — Upgrade de velocidad de caja. Clientes
-  pagan más rápido. Criterio: el upgrade aplica.
-- [ ] **UPG-5** (P1, S) — Upgrade de velocidad de producción de la
-  fábrica. Criterio: el upgrade aplica.
 - [ ] **EMP-1** (P2, M) — Sistema de rareza de empleados
   (común/raro/épico/legendario) con habilidades especiales. Al
   menos 3 empleados con habilidades distintas. Criterio: los
@@ -418,6 +410,41 @@ lanzamiento.**
   con "cashier auto-collected $5" verificado (--quit-after 8000,
   múltiples compras auto-colectadas, sin MoneyDrop en shelves con
   cajero). Export HTML5 OK (cashier.gd.remap en .pck 88KB).
+- [x] **UPG-1** (P1, S, r14/i1) — Upgrade de velocidad del jugador.
+  `scripts/game/upgrade_pad.gd` (UpgradePad Area2D reutilizable:
+  upgrade_type, base_price, max_level=5, price_growth geométrico;
+  try_buy() gasta cash, sube nivel, aplica efecto, escala precio;
+  _apply_effect por tipo; _resolve_player fallback por World children;
+  pulso verde loop + pop táctil al comprar; LevelLabel "Lv N/M";
+  forward-compat con SAVE-1 vía GameManager.has_method guard) +
+  `scenes/UpgradePad.tscn` (Body + NameLabel + LevelLabel + PriceLabel
+  + PromptLabel + AreaShape 80x80). UpgradeSpeed (80,100) tipo "speed"
+  base $80, +12% move_speed base por nivel. Headless: speed lv2 →
+  move_speed 220→276 (×1.12²). Export HTML5 OK.
+- [x] **UPG-2** (P1, S, r14/i1) — Upgrade de capacidad de carga.
+  UpgradeCarry (200,100) tipo "carry" base $120, +2 carry_capacity
+  base por nivel. Headless: carry lv2 → carry_capacity 3→7. Export
+  HTML5 OK.
+- [x] **UPG-3** (P1, S, r14/i1) — Upgrade de capacidad del estante.
+  UpgradeShelfCap (-80,200) tipo "shelf_cap" base $150, +3 capacity
+  a todos los estantes activos por nivel. Headless: shelf_cap lv2 →
+  capacity 6→12. Export HTML5 OK.
+- [x] **UPG-4** (P1, S, r14/i1) — Upgrade de velocidad de caja.
+  UpgradeCashierSpeed (320,60) tipo "cashier_speed" base $180. Sin
+  efecto directo sobre nodos: ClientSpawner lee
+  GameManager.get_upgrade_level("cashier_speed") al spawnear cada
+  cliente y reduce browse_time 15% por nivel (mín 0.1s). client.gd
+  añade @export var browse_time=0.5 y gatea _do_buy tras
+  _wait_time>=browse_time. Headless: cashier_speed lv2 registrado,
+  spawner aplica browse_time=max(0.1, 0.5*(1-0.15*2))=0.35s. Export
+  HTML5 OK.
+- [x] **UPG-5** (P1, S, r14/i1) — Upgrade de velocidad de producción.
+  UpgradeProduction (-440,-160) tipo "production" base $200, -10%
+  production_time por nivel (mín 0.4s) en todas las fábricas del
+  grupo "factories" (factory.gd añade add_to_group("factories")).
+  Patrón base-meta: captura base_production_time al primer nivel y
+  recompute. Headless: production lv2 → factory production_time
+  3.0→2.4 (×0.8). Export HTML5 OK (upgrade_pad.gd.remap en .pck 98KB).
 
 ---
 

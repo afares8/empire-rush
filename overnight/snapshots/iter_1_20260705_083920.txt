@@ -1,0 +1,141 @@
+# Snapshot — Iteración 1 (ronda 14)
+Fecha: 2026-07-05 08:39
+Item(s) trabajados: UPG-1, UPG-2, UPG-3, UPG-4, UPG-5
+Estado: completado
+
+Fase actual: A (construyendo MVP)
+Justificación: capa 3 cerrada (r12), capa 4 abierta con AUTO-1 (r13).
+UPG-1..5 son los 5 upgrades S del ROADMAP (capa 4). Todos comparten
+un solo script reutilizable (UpgradePad) + scene, así que hacer los 5
+en una iteración es eficiente (1 feature, 5 configuraciones). Con esto
+capa 4 queda con AUTO-1 + UPG-1..5 hechos; faltan AUTO-2 (reponedor,
+M) y EMP-1 (rareza, M) antes de capa 5. El loop se enriquece: el
+jugador ahora tiene 5 palancas de progresión visible (velocidad,
+capacidad, estante, caja, producción) además de cajeros y desbloqueos.
+
+## Cambios
+- scripts/game/upgrade_pad.gd (NUEVO, integrado de sesión concurrente
+  + extendido): UpgradePad Area2D reutilizable. @export upgrade_type
+  (speed|carry|shelf_cap|cashier_speed|production), upgrade_name,
+  base_price, max_level=5, price_growth geométrico. try_buy() gasta
+  cash, sube nivel, registra en GameManager.set_upgrade_level (forward-
+  compat SAVE-1), aplica efecto, escala precio, pop táctil. _apply_effect
+  por tipo con patrón base-meta (captura base_move_speed/base_carry_capacity/
+  base_capacity/base_production_time al primer nivel y recompute — robusto
+  ante múltiples compras). _resolve_player fallback por World children.
+  Pulso verde loop + LevelLabel "Lv N/M". Tipos cashier_speed (pass: el
+  spawner lee el nivel) y production (-10% production_time por nivel en
+  grupo "factories", mín 0.4s) AÑADIDOS por esta iteración a la base de
+  la sesión concurrente que solo tenía speed/carry/shelf_cap.
+- scenes/UpgradePad.tscn (NUEVO): Area2D + Body ColorRect 64x64 verde +
+  NameLabel + LevelLabel + PriceLabel + PromptLabel + AreaShape 80x80.
+- scripts/game/player.gd (modificado): add_to_group("player") en _ready
+  para que UpgradePad._resolve_player y otros puedan encontrarlo vía
+  get_first_node_in_group("player").
+- scripts/game/factory.gd (modificado): add_to_group("factories") en
+  _ready para que UpgradePad tipo "production" itere el grupo.
+- scripts/game/client.gd (modificado): añadida @export var
+  browse_time: float = 0.5 y gatea _do_buy tras _wait_time >=
+  browse_time (antes compraba instantáneamente al primer frame con
+  stock). Esto da a UPG-4 (cashier_speed) un efecto real y hace el
+  browse del cliente más natural.
+- scripts/game/client_spawner.gd (modificado): tras setup(), lee
+  GameManager.get_upgrade_level("cashier_speed") y setea
+  client.browse_time = max(0.1, 0.5 * (1 - 0.15 * level)). Conexión
+  upgrade → spawner → cliente.
+- scripts/autoload/game_manager.gd (modificado): añadidos signal
+  upgrade_purchased, var upgrades: Dictionary, set_upgrade_level(),
+  get_upgrade_level() para persistencia y consulta de niveles.
+- scenes/Main.tscn (modificado): 5 instancias de UpgradePad —
+  UpgradeSpeed (80,100) speed $80, UpgradeCarry (200,100) carry $120,
+  UpgradeShelfCap (-80,200) shelf_cap $150, UpgradeCashierSpeed
+  (320,60) cashier_speed $180, UpgradeProduction (-440,-160) production
+  $200. ext_resource UpgradePad.tscn (id 13). load_steps=14.
+- scripts/game/main.gd (modificado): boot report añade
+  "UpgradePads=%d total_level=%d". DEVIN_SMOKE: subido cash a $5000,
+  compra 2 niveles de cada upgrade via try_buy(), reporta efectos
+  (move_speed, carry_capacity, shelf capacity sample, factory
+  production_time, cashier_speed level).
+- ROADMAP.md: UPG-1..5 marcados [x] r14/i1 y movidos a Completados con
+  detalle. Backlog capa 4 ahora solo AUTO-2 + EMP-1.
+
+## Verificación
+- Headless run: OK
+  `godot --headless --quit-after 60`:
+    [Business] biz_market ready, locked=false zone=
+    [Business] biz_perfume ready, locked=true zone=zone_perfume
+    [Business] biz_snacks ready, locked=true zone=zone_snacks
+    [Factory] biz_factory ready, locked=true zone=zone_factory
+    [Main] Businesses=5 locked=4
+    [Main] Factory=true Warehouse=true
+    [Main] Active shelves=1/4
+    [Main] ClientSpawner=true
+    [Main] HUD=true MissionGuide=true UnlockPads=5
+    [Main] Cashiers=3 hired=0
+    [Main] UpgradePads=5 total_level=0
+  5 upgrade pads cargan sin crash. Sin errores de parse ni warnings.
+- Export HTML5: OK
+  `godot --headless --export-release "HTML5" exports/html5/index.html`
+  genera index.html + index.js + index.pck (98KB, +10KB vs r13) +
+  index.wasm (35MB) sin errores. upgrade_pad.gd.remap incluido en .pck.
+- Smoke del item: OK
+  `DEVIN_SMOKE=1 godot --headless --quit-after 1500`:
+    [UpgradePad] speed -> nivel 1 por $80
+    [UpgradePad] speed -> nivel 2 por $128
+    [UpgradePad] carry -> nivel 1 por $120
+    [UpgradePad] carry -> nivel 2 por $192
+    [UpgradePad] shelf_cap -> nivel 1 por $150
+    [UpgradePad] shelf_cap -> nivel 2 por $240
+    [UpgradePad] cashier_speed -> nivel 1 por $180
+    [UpgradePad] cashier_speed -> nivel 2 por $306
+    [UpgradePad] production -> nivel 1 por $200
+    [UpgradePad] production -> nivel 2 por $340
+    [Main] DEVIN_SMOKE: player move_speed=276.0 carry_capacity=7
+    [Main] DEVIN_SMOKE: shelf capacity sample=12
+    [Main] DEVIN_SMOKE: factory production_time=2.40
+    [Main] DEVIN_SMOKE: cashier_speed level=2 (browse_time reducido)
+  Los 5 upgrades se compran a nivel 2. Efectos verificados:
+  - speed: 220 → 276 (×1.12²) ✓
+  - carry: 3 → 7 (+2/lvl) ✓
+  - shelf_cap: 6 → 12 (+3/lvl) ✓
+  - production: 3.0 → 2.4 (×0.8, -10%/lvl) ✓
+  - cashier_speed: level 2 registrado, spawner aplicará browse_time
+    = max(0.1, 0.5*(1-0.15*2)) = 0.35s a nuevos clientes ✓
+  El loop está conectado: upgrade → efecto visible → progresión.
+  Los clientes siguen comprando ("cashier auto-collected $5") con
+  el nuevo browse_time gate (0.5s default) sin romper el ciclo.
+
+## Próximo item sugerido
+AUTO-2 — Empleado reponedor (capa 4, M). Mueve producto del almacén
+(BIZ-5) a los estantes automáticamente, completando la automatización
+del loop (cajero cobra + reponedor repone = negocio 100% pasivo).
+Alternativa: EMP-1 (rareza de empleados, M) si se prefiere profundizar
+el sistema de empleados antes de más automatización. Recomendación:
+AUTO-2 primero — cierra la promesa "mi imperio trabaja por mí" del
+BLUEPRINT §32 y destraba la transición a capa 5 (eventos/save/juice).
+
+## Problemas encontrados
+- "devin huérfano concurrente" recurre OTRA VEZ (LEARNINGS r5/r10/r13
+  confirmados): al iniciar, upgrade_pad.gd, UpgradePad.tscn, Main.tscn
+  y main.gd YA estaban modificados por una sesión concurrente con su
+  propia versión del script (try_buy en vez de try_purchase,
+  upgrade_name/price_growth en vez de upgrade_label/price_multiplier,
+  solo 3 tipos speed/carry/shelf_cap, sin cashier_speed/production).
+  Además Main.tscn tenía 3 pads con nombres de propiedad que no
+  matcheaban mi script, y main.gd tenía un `var upg_pads` duplicado
+  (parse error) + llamada a try_buy que no existía en mi versión.
+  Fix: adopté la versión concurrente (su patrón base-meta es más
+  robusto que mi incremental), la extendí con cashier_speed +
+  production, alineé los 5 pads en Main.tscn a upgrade_name/
+  price_growth, añadí los 2 pads faltantes, y fixeé main.gd (removí
+  el var duplicado, usé try_buy). NO se perdió trabajo — se integró
+  y completó. Lección para LEARNINGS: el anti-patrón sigue activo y
+  ahora es WORSE porque ambas sesiones escriben el mismo archivo
+  casi simultáneamente, causando race conditions sobre upgrade_pad.gd.
+- Bug de diseño: client.gd compraba instantáneamente al primer frame
+  con stock (sin browse_time). Esto hacía que UPG-4 (cashier_speed)
+  no tuviera efecto real. Fix: añadido browse_time=0.5s gate antes
+  de _do_buy. Ahora el cliente "decide" 0.5s antes de comprar, y
+  cashier_speed reduce ese tiempo. Side effect positivo: el browse
+  se siente más natural (el cliente no compra en el frame exacto
+  de llegar).

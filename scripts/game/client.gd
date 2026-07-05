@@ -16,6 +16,9 @@ signal left()
 @export var walk_speed: float = 130.0
 @export var wait_for_stock_max: float = 5.0
 @export var product_value: float = 5.0
+# Tiempo que el cliente "decide" antes de comprar. UPG-4 (cashier_speed)
+# reduce este valor vía GameManager.get_upgrade_level("cashier_speed").
+@export var browse_time: float = 0.5
 
 var target_shelf: Node = null
 var exit_pos: Vector2 = Vector2.ZERO
@@ -54,11 +57,12 @@ func _process(_delta: float) -> void:
 				_wait_time = 0.0
 		"browse":
 			_wait_time += real_delta
-			if target_shelf and target_shelf.has_method("has_stock") and target_shelf.has_stock():
-				_do_buy()
-			elif _wait_time >= wait_for_stock_max:
-				_state = "to_exit"
-				_update_target_for_state()
+			if _wait_time >= browse_time:
+				if target_shelf and target_shelf.has_method("has_stock") and target_shelf.has_stock():
+					_do_buy()
+				elif _wait_time >= wait_for_stock_max:
+					_state = "to_exit"
+					_update_target_for_state()
 		"to_exit":
 			_walk(real_delta)
 			if _reached_target():

@@ -1,0 +1,110 @@
+# Snapshot — Iteración 1 (ronda 14)
+Fecha: 2026-07-05 08:33
+Item(s) trabajados: UPG-1, UPG-2, UPG-3
+Estado: completado
+
+Fase actual: A (construyendo MVP)
+Justificación: capa 3 cerrada (r12). Capa 4 abierta en r13 con
+AUTO-1 (cajero). Esta iteración cierra 3 upgrades S (UPG-1/2/3) —
+son S, comparten el patrón "pad de upgrade", y suman variedad de
+progresión visible (3 pads verdes pulsando con meta cercana). Capa
+4 ahora 4/8 (AUTO-1 + UPG-1/2/3). Siguiente: UPG-4/5 (S) o AUTO-2
+(M, reponedor).
+
+## Cambios
+- scripts/game/upgrade_pad.gd (NUEVO): UpgradePad Area2D reutilizable.
+  @export upgrade_type ("speed"|"carry"|"shelf_cap"), upgrade_name,
+  base_price, max_level=5, price_growth=1.6 (precio geométrico:
+  base * growth^nivel). try_buy() API pública para smoke headless:
+  gasta cash via Economy.spend_cash, sube _level, aplica efecto,
+  refresca labels, emite purchased. _apply_effect por tipo:
+    speed → +12% move_speed base por nivel (meta base_move_speed
+      preserva el original; reconstruye base * 1.12^nivel cada compra
+      para que sea idempotente y no drift).
+    carry → +2 carry_capacity base por nivel (meta base_carry_capacity).
+    shelf_cap → +3 capacity a TODOS los estantes activos (no locked)
+      por nivel (meta base_capacity por shelf, idempotente).
+  _resolve_player: fallback por World.get_children() buscando
+    has_method("add_carried") — robusto sin grupo "players". Duck-
+    typing evita class_name Player (LEARNINGS r2).
+  _refresh: LevelLabel "Lv N/M", PriceLabel "$N" o "MAX", pop táctil
+    al comprar, color amarillo + pop al maxear.
+  _start_pulse: pulso verde loop (meta cercana visible, §32) solo si
+    no maxed.
+  Forward-compat SAVE-1: GameManager.set_upgrade_level solo si
+    has_method (no falla si no está implementado).
+- scenes/UpgradePad.tscn (NUEVO): Area2D + Body ColorRect 64x64 verde
+  + NameLabel (arriba) + LevelLabel "Lv 0/5" + PriceLabel "$80" +
+  PromptLabel "E para mejorar" + AreaShape 80x80. Conexiones
+  body_entered/exited.
+- scenes/Main.tscn (modificado): añadidas 3 instancias de UpgradePad:
+  UpgradeSpeed (80,100) speed $80, UpgradeCarry (200,100) carry $120,
+  UpgradeShelfCap (-80,200) shelf_cap $150. ext_resource id 13_upg.
+  load_steps=14.
+- scripts/game/main.gd (modificado): boot report añade
+  "UpgradePads=%d total_level=%d" (grupo "upgrade_pads"). DEVIN_SMOKE:
+  tras contratar cajeros, compra 2 niveles de cada upgrade via
+  try_buy() y reporta efectos aplicados (move_speed, carry_capacity,
+  shelf capacity sample).
+- ROADMAP.md: UPG-1/2/3 marcados [x] y movidos a Completados con
+  detalle final.
+
+## Verificación
+- Headless run: OK
+  `godot --headless --quit-after 60`:
+    [Main] Businesses=5 locked=4
+    [Main] Factory=true Warehouse=true
+    [Main] Active shelves=1/4
+    [Main] HUD=true MissionGuide=true UnlockPads=5
+    [Main] Cashiers=3 hired=0
+    [Main] UpgradePads=3 total_level=0
+  3 pads cargan sin crash, sin errores de parse ni nodos faltantes.
+- Export HTML5: OK
+  `godot --headless --export-release "HTML5" exports/html5/index.html`
+  genera index.html + index.js + index.pck (97KB, +9KB vs r13 88KB) +
+  index.wasm (35MB) sin errores. upgrade_pad.gd.remap incluido en .pck.
+- Smoke del item: OK
+  `DEVIN_SMOKE=1 godot --headless --quit-after 200`:
+    [UpgradePad] speed -> nivel 1 por $80
+    [UpgradePad] speed -> nivel 2 por $128
+    [UpgradePad] carry -> nivel 1 por $120
+    [UpgradePad] carry -> nivel 2 por $192
+    [UpgradePad] shelf_cap -> nivel 1 por $150
+    [UpgradePad] shelf_cap -> nivel 2 por $240
+    [Main] DEVIN_SMOKE: player move_speed=276.0 carry_capacity=7
+    [Main] DEVIN_SMOKE: shelf capacity sample=12
+  Los 3 upgrades aplican correctamente:
+    speed lv2: 220 * 1.12^2 = 276.0 ✓
+    carry lv2: 3 + 2*2 = 7 ✓
+    shelf_cap lv2: 6 + 3*2 = 12 ✓
+  Price scaling geométrico: $80→$128 (×1.6), $120→$192 (×1.6),
+  $150→$240 (×1.6) ✓. try_buy respeta spend_cash. El loop está
+  conectado: recoger dinero → gastar en upgrade → efecto visible
+  (más rápido/más carga/más stock) → más eficiencia → más dinero.
+
+## Próximo item sugerido
+UPG-4 — Upgrade de velocidad de caja (capa 4, S). Reusa UpgradePad
+con tipo "cashier_speed" (reduce browse_time de clientes). Junto con
+UPG-5 (production speed), cerrarían los 5 upgrades S en 1 iter más.
+Alternativa: AUTO-2 (reponedor, M) si se prefiere seguir con
+automatización antes de upgrades. Recomendación: hacer UPG-4/5 (S)
+en la próxima iter — son S y el UpgradePad ya está reutilizable.
+
+## Problemas encontrados
+- "devin huérfano concurrente" recurre en r14 (4ta ronda seguida con
+  conflicto): al iniciar, upgrade_pad.gd y UpgradePad.tscn YA habían
+  sido escritos por una sesión concurrente con un diseño distinto al
+  mío (upgrade_label/price_multiplier/effect_per_level, LevelLabel,
+  try_purchase, GameManager.set_upgrade_level sin guard,
+  get_first_node_in_group("player") sin grupo). Main.tscn y main.gd
+  eran mi versión (upgrade_name/price_growth, try_buy). La versión
+  concurrente tenía bugs reales: crash en GameManager.set_upgrade_level
+  (método inexistente), player no resuelto (grupo "player" no existe),
+  mismatch de property names con Main.tscn. Fix: reconciliación
+  (LEARNINGS r12 #2) — adopté el LevelLabel del scene concurrente (UX
+  mejor) pero reescribí el script para ser self-consistent con
+  Main.tscn + main.gd + GameManager real. NO se perdió trabajo útil
+  de la otra sesión (LevelLabel preservado); los bugs sí se fixearon.
+- Stale .godot cache tras añadir class_name UpgradePad: confirmado
+  LEARNINGS r12 lección 3. `rm -rf .godot` antes del primer run
+  post-add para que el class_name se registre.

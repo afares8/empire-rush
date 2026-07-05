@@ -40,6 +40,7 @@ var _last_ms: int = 0  # wall-clock para robustez headless (LEARNINGS r5)
 @onready var _output_area: Area2D = $OutputArea
 
 func _ready() -> void:
+	add_to_group("factories")
 	_locked = start_locked
 	if _locked and unlock_zone_id != "" and GameManager.is_zone_unlocked(unlock_zone_id):
 		_locked = false

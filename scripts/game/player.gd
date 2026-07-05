@@ -28,6 +28,7 @@ var _base_body_y: float = 0.0
 var _base_head_y: float = 0.0
 
 func _ready() -> void:
+	add_to_group("player")
 	_base_body_y = _body.position.y
 	_base_head_y = _head.position.y
 	# Sombra más ancha que el cuerpo para dar profundidad isométrica.

@@ -47,6 +47,13 @@ func _ready() -> void:
 		if ch.has_method("is_hired") and ch.is_hired():
 			cashiers_hired += 1
 	print("[Main] Cashiers=%d hired=%d" % [cashiers.size(), cashiers_hired])
+	# Verificar pads de upgrade cargados (capa 4, UPG-1..5).
+	var upg_pads: Array = get_tree().get_nodes_in_group("upgrade_pads")
+	var upg_total_level: int = 0
+	for u in upg_pads:
+		if u.has_method("get_level"):
+			upg_total_level += u.get_level()
+	print("[Main] UpgradePads=%d total_level=%d" % [upg_pads.size(), upg_total_level])
 	# Debug smoke: pre-llena estantes activos para probar el ciclo de
 	# clientes sin requerir input del jugador. Activado por env var
 	# DEVIN_SMOKE=1.
@@ -59,7 +66,7 @@ func _ready() -> void:
 		# Smoke del pad: dar cash y desbloquear TODOS los negocios locked
 		# (BIZ-2/3/4/5) para validar que _on_zone_unlocked reactiva cada uno.
 		if Economy:
-			Economy.add_cash(2000.0)
+			Economy.add_cash(5000.0)
 		for b in bizs:
 			if b.is_locked() and b.has_method("_on_zone_unlocked"):
 				var zid: String = b.unlock_zone_id
@@ -76,6 +83,29 @@ func _ready() -> void:
 			if ch.has_method("try_hire") and not ch.is_hired():
 				if ch.try_hire():
 					print("[Main] DEVIN_SMOKE: cashier hired for %s" % ch.target_business_id)
+		# Comprar 2 niveles de cada upgrade para validar efectos.
+		for u in upg_pads:
+			if u.has_method("try_buy"):
+				for _i in range(2):
+					if not u.try_buy():
+						break
+				print("[Main] DEVIN_SMOKE: upgrade %s -> nivel %d" % [u.upgrade_type, u.get_level()])
+		# Reportar efectos aplicados.
+		var player_node: Node = get_node_or_null("World/Player")
+		if player_node:
+			print("[Main] DEVIN_SMOKE: player move_speed=%.1f carry_capacity=%d" % [player_node.move_speed, player_node.carry_capacity])
+		var shelf_cap_sample: Node = null
+		for s in get_tree().get_nodes_in_group("shelves"):
+			if "capacity" in s and "locked" in s and not s.locked:
+				shelf_cap_sample = s
+				break
+		if shelf_cap_sample:
+			print("[Main] DEVIN_SMOKE: shelf capacity sample=%d" % shelf_cap_sample.capacity)
+		# Reportar producción y cashier_speed aplicados.
+		var fnode: Node = get_node_or_null("World/FactoryBIZ4")
+		if fnode and "production_time" in fnode:
+			print("[Main] DEVIN_SMOKE: factory production_time=%.2f" % fnode.production_time)
+		print("[Main] DEVIN_SMOKE: cashier_speed level=%d (browse_time reducido en spawner)" % GameManager.get_upgrade_level("cashier_speed"))
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
