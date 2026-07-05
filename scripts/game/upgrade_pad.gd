@@ -98,6 +98,10 @@ func try_buy() -> bool:
 	_apply_effect()
 	_refresh()
 	emit_signal("purchased", upgrade_type, _level)
+	# JUICE-1: SFX + shake ligero al comprar upgrade.
+	if Juice:
+		Juice.play_buy()
+		Juice.shake(3.0, 0.18)
 	print("[UpgradePad] %s -> nivel %d por $%d" % [upgrade_type, _level, int(price)])
 	return true
 

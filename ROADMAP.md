@@ -187,10 +187,6 @@ lanzamiento.**
   ingresos pasivos por el tiempo ausente y mostrar popup "Tu
   imperio generó $X mientras estabas fuera" con botón ×2 (ad).
   Criterio: el popup aparece y suma.
-- [ ] **JUICE-1** (P1, S) — Polished feel: partículas al recoger
-  dinero, sonido placeholder, screen shake suave al desbloquear,
-  animación de cash volando al HUD. Criterio: el juego se siente
-  satisfactorio.
 - [ ] **JUICE-2** (P2, S) — Música de fondo + SFX placeholders
   (libres de licencia o generados con Godot). Criterio: hay audio.
 
@@ -216,13 +212,6 @@ lanzamiento.**
 > de esos criterios. Los items son ejemplos — la AI debe crear los
 > específicos según lo que observe al probar el juego.
 
-- [ ] **POLISH-1** (P1, S) — Feedback visual + sonoro al recoger
-  dinero: partículas, tween de scale, sonido placeholder. Criterio:
-  recoger dinero se siente satisfactorio.
-- [ ] **POLISH-2** (P1, S) — Tween de cash volando al HUD al
-  recoger. Criterio: el dinero vuela visualmente al contador.
-- [ ] **POLISH-3** (P1, S) — Screen shake suave al desbloquear zona.
-  Criterio: el desbloqueo se siente impactante.
 - [ ] **POLISH-4** (P1, S) — Glow/pulso en pads de desbloqueo para
   llamar la atención. Criterio: los pads son visualmente atractivos.
 - [ ] **POLISH-5** (P1, S) — Indicador de "meta cercana" siempre
@@ -529,6 +518,37 @@ lanzamiento.**
   3.0s→2.40s (÷1.25 influencer raro). Export HTML5 OK (index.pck
   120KB, +12KB vs r15, incluye employee_rarity.gd.remap +
   influencer.gd.remap). Capa 4 CERRADA.
+- [x] **JUICE-1** (P1, S, r17/i1) — Polished feel: partículas al
+  recoger dinero, sonido placeholder, screen shake suave al
+  desbloquear, animación de cash volando al HUD. Nuevo autoload
+  `Juice` (`scripts/autoload/juice.gd`) centraliza feedback táctil:
+  `money_burst()` (CPUParticles2D verde, 14 partículas, gravedad),
+  `fly_cash()` (Label "+$N" que flota up + shrink + fade), `shake()`
+  (offset random en Camera2D con decaimiento), `unlock_burst()`
+  (24 partículas radiales amarillas), SFX procedural vía
+  AudioStreamWAV generado en runtime (`_gen_beep` ascendente para
+  pickup, `_gen_chord` C-major para unlock, beep descendente para
+  buy). Sin assets externos → HTML5-safe. Registrado en
+  project.godot `[autoload]`. money_drop.gd: al recoger llama
+  money_burst + fly_cash + play_pickup + pop de scale antes de
+  queue_free. unlock_pad.gd: try_unlock llama shake(8,0.35) +
+  unlock_burst + play_unlock. upgrade_pad.gd: try_buy llama
+  play_buy + shake(3,0.18). main.gd boot report añade Juice=true.
+  Headless: DEVIN_SMOKE corre 10 upgrades con Juice.shake/play_buy
+  sin crash. Export HTML5 OK (index.pck 126KB, +6KB, incluye
+  juice.gd.remap + index.audio.worklet.js para audio web).
+- [x] **POLISH-1** (P1, S, r17/i1) — Feedback visual + sonoro al
+  recoger dinero: partículas (CPUParticles2D), tween de scale pop,
+  sonido placeholder (beep ascendente 660→1320Hz). Cubierto por
+  JUICE-1 money_drop.gd + Juice.money_burst/play_pickup.
+- [x] **POLISH-2** (P1, S, r17/i1) — Tween de cash volando al HUD
+  al recoger. Label "+$N" flota 90px up con shrink + fade
+  (TRANS_QUAD EASE_OUT). Cubierto por JUICE-1 Juice.fly_cash.
+- [x] **POLISH-3** (P1, S, r17/i1) — Screen shake suave al
+  desbloquear zona. Juice.shake(8, 0.35) aplica offset random a
+  Camera2D con decaimiento lineal. Acompañado de unlock_burst
+  (24 partículas amarillas radiales) + play_unlock (chord C-major).
+  Cubierto por JUICE-1 unlock_pad.gd.
 
 ---
 

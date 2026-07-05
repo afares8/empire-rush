@@ -67,6 +67,11 @@ func try_unlock() -> bool:
 	GameManager.unlock_zone(zone_id)
 	_mark_done()
 	emit_signal("unlocked", zone_id)
+	# POLISH-3: screen shake + burst de partículas + SFX al desbloquear.
+	if Juice:
+		Juice.shake(8.0, 0.35)
+		Juice.unlock_burst(global_position)
+		Juice.play_unlock()
 	print("[UnlockPad] zona %s desbloqueada por $%d" % [zone_id, int(price)])
 	return true
 

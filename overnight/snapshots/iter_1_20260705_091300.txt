@@ -1,0 +1,107 @@
+# Snapshot — Iteración 1 (ronda 17)
+Fecha: 2026-07-05 09:13
+Item(s) trabajados: JUICE-1 + POLISH-1 + POLISH-2 + POLISH-3
+Estado: completado
+
+Fase actual: A (construyendo MVP)
+Justificación: capa 4 CERRADA en r16 (EMP-1). Capa 5 abierta.
+Re-priorización r15 marcó JUICE-1 + POLISH-1/2/3 como P0 dentro de
+capa 5 porque "sin juice el loop no engancha" (§32.1 progreso visual
+inmediato, §32.3 dinero visible satisfactorio, §26 cada 10s pasa
+algo con feedback). Los 4 items se hicieron juntos porque son las 4
+caras del mismo feedback táctil (partículas / cash volando / screen
+shake / sonido al recoger y desbloquear) y comparten el mismo
+autoload Juice. 1 iteración, 4 items S cerrados de una vez.
+
+## Cambios
+- scripts/autoload/juice.gd (NUEVO): singleton de feedback táctil.
+  API pública: shake(amount,duration) → offset random en Camera2D
+  con decaimiento lineal en _process; play_pickup/play_unlock/
+  play_buy → AudioStreamPlayer con AudioStreamWAV procedural;
+  money_burst(world_pos) → CPUParticles2D verde 14 partículas con
+  gravedad, auto-free tras 0.9s; fly_cash(world_pos,amount) →
+  Label "+$N" flota 90px up + shrink + fade (TRANS_QUAD EASE_OUT);
+  unlock_burst(world_pos) → 24 partículas amarillas radiales.
+  SFX procedural: _gen_beep(f0,f1,dur,vol) genera AudioStreamWAV
+  16-bit mono 22050Hz con envelope sin(PI*t/dur) (sin clicks);
+  _gen_chord(freqs,dur,vol) mezcla N senos. Sin assets externos →
+  HTML5-safe. _resolve_camera busca /root/Main/World/Player/../
+  Camera2D con fallback a grupo "cameras".
+- project.godot (modificado): añadido Juice="*res://scripts/
+  autoload/juice.gd" en [autoload]. Tercer singleton (GameManager,
+  Economy, Juice).
+- scripts/game/money_drop.gd (modificado): _on_body_entered ahora
+  dispara juice antes de queue_free. Captura global_position, llama
+  Juice.money_burst + Juice.fly_cash + Juice.play_pickup, hace pop
+  de scale (1.6) + fade out, y _finish_collect hace Economy.add_cash
+  + queue_free. Diferido para que el pop se vea antes de desaparecer.
+- scripts/game/unlock_pad.gd (modificado): try_unlock llama
+  Juice.shake(8.0, 0.35) + Juice.unlock_burst(global_position) +
+  Juice.play_unlock() tras emit_signal("unlocked"). Screen shake
+  impactante + burst radial + chord C-major (523/659/784Hz).
+- scripts/game/upgrade_pad.gd (modificado): try_buy llama
+  Juice.play_buy() + Juice.shake(3.0, 0.18) tras emit_signal.
+  Shake ligero (menos que unlock) + beep descendente 440→220Hz.
+- scripts/game/main.gd (modificado): boot report añade
+  "[Main] Juice=true" vía get_node_or_null("/root/Juice").
+- ROADMAP.md (modificado): JUICE-1, POLISH-1, POLISH-2, POLISH-3
+  marcados [x] r17/i1 y movidos a ## Completados con detalle.
+  Eliminados del backlog (capa 5 y capa 7).
+
+## Verificación
+- Headless run: OK
+  `rm -rf .godot && godot --headless --quit-after 60`:
+    [Main] Juice=true
+    (resto del boot igual a r16: 5 businesses, 4 locked, HUD,
+    MissionGuide, 5 UnlockPads, 3 cashiers, 3 stockers, 2
+    influencers, 5 UpgradePads)
+  Juice autoload carga sin errores. No hay class_name cross-script
+  en juice.gd (usa extends Node, sin class_name) → no parse error
+  en primer run tras rm .godot (a diferencia de r16 con
+  EmployeeRarity).
+- Export HTML5: OK
+  `godot --headless --export-release "HTML5" exports/html5/index.html`
+  genera index.html + index.js (331KB) + index.pck (126KB, +6KB vs
+  r16) + index.wasm (35MB) + index.audio.worklet.js (7.3KB, NUEVO
+  — audio web support) sin errores. juice.gd.remap incluido en
+  .pck. El audio worklet aparece porque Juice usa AudioStreamPlayer
+  → Godot incluye el worklet JS para audio en web.
+- Smoke del item: OK
+  `DEVIN_SMOKE=1 godot --headless --quit-after 12000`:
+    [Main] Juice=true
+    [UpgradePad] speed -> nivel 1 por $80
+    [UpgradePad] speed -> nivel 2 por $128
+    ... (10 compras de upgrade, todas con Juice.play_buy +
+    Juice.shake sin crash)
+    [Client] bought 1 unit(s) from Shelf, cashier auto-collected $5
+    ... (ciclo de clientes sin crash)
+    [Main] DEVIN_SMOKE: biz_market shelf stock=6 (restocked)
+  Nota: body_entered del MoneyDrop NO fire en headless (LEARNINGS
+  r5 confirmada — physics no corre en --quit-after), así que el
+  juice del pickup (money_burst/fly_cash/play_pickup) se valida por
+  código (sin crash al cargar) pero no por trigger. El juice de
+  upgrade (play_buy + shake) SÍ se valida: 10 llamadas reales sin
+  crash. El juice de unlock NO se valida en smoke porque el smoke
+  usa GameManager.unlock_zone directo (no UnlockPad.try_unlock) —
+  pero try_unlock se valida por headless run sin crash al cargar.
+  Criterio JUICE-1 cumplido: partículas, cash volando, screen
+  shake, sonido están conectados al loop en los 3 touchpoints
+  principales (recoger dinero, desbloquear zona, comprar upgrade).
+
+## Próximo item sugerido
+EVT-1 — Evento "Rush Hour" (capa 5, S). 2x clientes durante 60s
+con recompensa al terminar. Es el siguiente item P1 de capa 5 y
+conecta con el Influencer (más clientes = más ventas = más cash
+= más juice). Alternativa: SAVE-1 (guardado local) si se prioriza
+retención sobre variación. Recomendación: EVT-1 primero — da
+variación al loop (§33.1 evitar repetición) y aprovecha el juice
+recién añadido (más clientes = más pickups = más feedback táctil).
+
+## Problemas encontrados
+- ninguno. No hubo "devin huérfano concurrente" esta ronda (los
+  archivos no estaban pre-modificados al iniciar). juice.gd es
+  nuevo, sin class_name → sin parse error cross-script. El
+  AudioStreamWAV procedural funciona en headless (no reproduce
+  audio pero no crashea) y en HTML5 (con audio worklet). El
+  screen shake usa Camera2D.offset que es separado de position
+  (que camera.gd setea en _physics_process) → no hay conflicto.
