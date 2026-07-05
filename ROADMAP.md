@@ -1,5 +1,16 @@
 # Trade Empire Rush — ROADMAP
 
+> **Re-priorizado por fine-tuning ronda 10 (2026-07-05 07:50)**:
+> CRÍTICO — el anti-patrón `Reset-FailedIteration` (lección r5) NO
+> se fixeó y SIGUE destruyendo trabajo. r9 (BIZ-1) y r10 (BIZ-1/2/3)
+> completaron su trabajo pero el controller timeout+reset lo borró.
+> El último commit real es r8 (capa 2 + EXP-1). BIZ-1/2/3 fueron
+> hechos 2 veces y perdidos 2 veces. La próxima ronda DEBE:
+> (1) fixear el controller (commit WIP cada 10 min + timeout 90 min),
+> (2) re-hacer BIZ-1/2/3 (el patrón `Business` ya está validado en
+> r10 log — 1 iteración), (3) cerrar BIZ-4/5 antes de tocar capa 4.
+> Orden de capas 3→4→5 se mantiene. No saltar a Fase B hasta cerrar.
+
 > **Re-priorizado por fine-tuning ronda 5 (2026-07-05)**: EXP-1
 > (export HTML5) sube a P0 dentro de la Fase A, inmediatamente
 > después de cerrar capa 2 (LOOP-7/8/9). Razón: después de 5 rondas

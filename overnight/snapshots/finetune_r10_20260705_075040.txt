@@ -1,0 +1,74 @@
+# Snapshot — Fine-tuning ronda 10
+Fecha: 20260705_075040
+
+## Lecciones extraídas
+
+### Proceso
+1. CRÍTICO: el anti-patrón `Reset-FailedIteration` (lección r5) NO
+   se fixeó. r6, r9, r10 completaron trabajo pero el controller
+   timeout+reset lo borró. ~135 min de compute tirados (r6+r9+r10).
+   El último commit real es r8.
+2. Timeout 45 min demasiado corto para items M/L. r9 (BIZ-1) y r10
+   (BIZ-1/2/3) completaron en el log pero el controller las mató.
+3. Devin huérfano concurrente recurre en r10 (3 devin.exe vivos).
+   `taskkill //F //IM devin.exe` al START de cada sesión, no solo
+   al final.
+4. r10 sobreescribió untracked sin leerlos primero. Recuperó vía
+   reconstrucción desde snapshot. SIEMPRE `git status` + leer
+   untracked antes de write.
+5. git_status del prompt es stale — el controller no hace git reset
+   al inicio de cada ronda, WIP se acumula.
+
+### Técnicas
+1. Abstracción `Business` (Node2D contenedor con product_value,
+   start_locked, unlock_zone_id) escala bien — r10 demostró BIZ-1/2/3
+   en 1 iteración. Reutiliza pads existentes como gate.
+2. `client_spawner.gd` debe filtrar shelves de negocios bloqueados
+   (refresh + filter cada intento).
+3. Export HTML5 estable en r8 — `export_presets.cfg` + templates en
+   `%APPDATA%/Godot/export_templates/4.3.stable/` funcionan.
+4. Headless `--quit-after 60` sigue siendo el gate fiable (boot +
+   _ready + _process). NO valida _physics_process ni body_entered.
+
+### Diseño
+1. Loop base "conectado" pero NO "adictivo": sin juice, sin contenido
+   (solo 2 pickups/2 shelves), sin empleados, sin balance.
+2. Falta contenido es la brecha más grande: con 1 negocio el loop es
+   monótono. BIZ-1/2/3 se hicieron 2 veces pero se perdieron.
+3. MissionGuide existe pero el 4to beat (HIRE_HELP) queda colgado
+   sin AUTO-1 (empleado cajero).
+4. MVP a ~8–10 iter de ser "lanzado": BIZ-1/2/3 (3 iter) + BIZ-4/5
+   (2 iter) + AUTO-1/2 (2 iter) + JUICE-1/POLISH-1/2 (2 iter) +
+   balance/smoke visual (1 iter).
+
+## Cambios al ROADMAP
+- Nuevo comentario de re-priorización ronda 10 al top: documenta
+  que BIZ-1/2/3 se perdieron 2 veces, el último commit es r8, y la
+  próxima ronda DEBE fixear el controller + re-hacer BIZ-1/2/3 +
+  cerrar BIZ-4/5 antes de capa 4.
+- Orden de capas 3→4→5 se mantiene. No saltar a Fase B hasta cerrar.
+- No se añadieron items nuevos (el ROADMAP ya tiene BIZ-1..5, AUTO,
+  UPG, EVT, RNK, MON, SAVE, OFF, JUICE, POLISH, V1-* completos).
+
+## Veredicto del MVP
+- **PARCIAL** — el cimiento está verde y jugable en navegador (capa
+  1 + 1.5 + 2 completas y commiteadas, export HTML5 OK, headless run
+  OK verificado), pero NO es adictivo. Le falta contenido (solo 1
+  negocio), juice (sin partículas/sonido/fly-to-HUD), empleados
+  (4to beat colgado), balance. El loop funciona en código pero no
+  "se siente" bien. NO lanzar todavía. Necesita 3–5 rondas más CON
+  el controller arreglado (commit WIP cada 10 min + timeout 90 min)
+  para cerrar BIZ-1..5 + AUTO-1 + JUICE-1 + balance.
+
+## Próximo item sugerido (si se corre otra ronda)
+1. **FIX-CONTROLLER** (no es item de ROADMAP, es fix de proceso
+   BLOQUEANTE): `session.ps1` commitear WIP cada 10 min;
+   `run_overnight.ps1` timeout 90 min + `git reset --hard HEAD` al
+   START de cada ronda (después de commitear WIP previo) +
+   `taskkill //F //IM devin.exe` al START de cada sesión. Sin este
+   fix, la próxima ronda pierde el trabajo otra vez.
+2. **BIZ-1/2/3** — Re-hacer 3 negocios (ropa $5, perfume $15, market
+   $3) en 1 iteración. Patrón `Business` validado en r10 log.
+3. **JUICE-1** — Partículas + sonido al recoger dinero (regla de oro).
+4. **BIZ-4** — Mini taller/fábrica (materia prima → máquina → producto).
+5. **AUTO-1** — Empleado cajero (cierra 4to beat del primer minuto).
