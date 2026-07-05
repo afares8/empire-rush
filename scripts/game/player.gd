@@ -7,17 +7,22 @@ extends CharacterBody2D
 
 signal interact_pressed
 signal moved(velocity: Vector2)
+signal carry_changed(carried: int)
 
 @export var move_speed: float = 220.0
 @export var acceleration: float = 1800.0
 @export var friction: float = 1600.0
+@export var carry_capacity: int = 3
 
 var facing: Vector2 = Vector2.DOWN
 var is_walking: bool = false
+var carried: int = 0
 
 @onready var _body: ColorRect = $Body
 @onready var _head: ColorRect = $Head
 @onready var _shadow: ColorRect = $Shadow
+@onready var _carry_box: ColorRect = $CarryBox
+@onready var _carry_label: Label = $CarryLabel
 var _bob_t: float = 0.0
 var _base_body_y: float = 0.0
 var _base_head_y: float = 0.0
@@ -29,6 +34,7 @@ func _ready() -> void:
 	_shadow.size = Vector2(34, 12)
 	_shadow.color = Color(0.0, 0.0, 0.0, 0.35)
 	_shadow.position = Vector2(-_shadow.size.x / 2.0, 22)
+	_update_carry_visual()
 
 func _physics_process(delta: float) -> void:
 	var input_vec: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down")

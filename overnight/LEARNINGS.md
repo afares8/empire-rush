@@ -39,3 +39,20 @@
   referencias (`@onready` fallaría ruidosamente si un hijo no existe).
 - **M items = 1 por iteración**: respetar la regla. LOOP-1 solo,
   bien hecho, deja el árbol verde para LOOP-2/LOOP-3 la próxima.
+
+## Ronda 1 (iter LOOP-2)
+
+- **Camera2D + smoothing manual**: desactivar
+  `position_smoothing_enabled` y hacer lerp exponencial a mano en
+  `_physics_process` da control total sobre look-ahead. El smoothing
+  built-in pelea con el offset manual.
+- **`--quit-after 60` es el gate ideal para items con `_physics_process`**:
+  corre 60 frames y sale limpio, valida que _ready + _physics_process
+  no crashean sin colgar el shell.
+- **Re-búsqueda de nodos en `_physics_process`**: si un nodo
+  referenciado puede no estar en _ready (orden de carga), re-hacer
+  `get_node_or_null` en _physics_process es barato y robusto.
+- **Env vars vs ROADMAP pueden discrepar**: el controller puede
+  reiniciar el contador de ronda. Siempre usar `DEVIN_OVERNIGHT_ROUND`
+  / `DEVIN_OVERNIGHT_ITER` como fuente de verdad para el snapshot,
+  no el número que dice el ROADMAP.
