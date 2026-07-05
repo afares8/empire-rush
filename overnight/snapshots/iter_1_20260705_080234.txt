@@ -1,0 +1,76 @@
+# Snapshot — Iteración 1 (ronda 11)
+Fecha: 2026-07-05 08:02
+Item(s) trabajados: BIZ-1, BIZ-2, BIZ-3
+Estado: completado
+
+Fase actual: A (construyendo MVP)
+Justificación: capa 3 (BIZ-1/2/3) era el siguiente bloque pendiente
+tras cerrar capa 2 + EXP-1 en r8. BIZ-4/5 aún pendientes, así que
+seguimos en Fase A.
+
+## Cambios
+- scripts/game/business.gd (NUEVO, sobrevivió de r10 WIP): Business
+  Node2D contenedor. business_id, business_name, product_name,
+  product_value, start_locked, unlock_zone_id, unlock_price, tint.
+  _ready aplica estado (locked/unlocked), escucha
+  GameManager.zone_unlocked. _apply_state marca shelves locked,
+  apaga pickups (visible/monitoring), reactiva pad. _apply_tint
+  distingue negocios por color. is_locked() API pública.
+- scenes/Business.tscn (NUEVO, sobrevivió de r10 WIP): Pickup +
+  Shelf + UnlockPad hijos. Reutiliza escenas existentes.
+- scripts/game/shelf.gd (modificado, r10 WIP): añadido `locked`
+  bool + `product_value` float. _on_player_interact/take_item/
+  has_stock respetan locked. _update_visual muestra "LOCKED" gris.
+- scripts/game/client_spawner.gd (modificado, r10 WIP): _refresh
+  _shelves filtra shelves locked. _try_spawn refresca cada intento
+  (negocios pueden desbloquearse mid-sesión).
+- scripts/game/client.gd (modificado, r10 WIP): _do_buy usa
+  shelf.product_value si disponible (conexión estante→cliente→dinero).
+  _spawn_money_drop recibe val explícito.
+- scenes/Main.tscn (reescrito): reemplazados PickupA/B + ShelfA/B +
+  UnlockPadA/B sueltos por 3 Business instances:
+  - BusinessBIZ1 (camisetas $5, unlocked, tint verde) en (-120,-60)
+  - BusinessBIZ2 (perfumes $15, locked, zone_perfume $120, tint rosa) en (240,-180)
+  - BusinessBIZ3 (snacks $3, locked, zone_snacks $400, tint naranja) en (-280,180)
+- scripts/game/main.gd (actualizado): verificación ahora reporta
+  Businesses count + locked count + active shelves. DEVIN_SMOKE
+  pre-llena solo shelves activos y fuerza unlock del primer biz
+  locked via GameManager.unlock_zone.
+
+## Verificación
+- Headless run: OK
+  `godot --headless --quit-after 60`:
+    [Business] biz_market ready, locked=false zone=
+    [Business] biz_perfume ready, locked=true zone=zone_perfume
+    [Business] biz_snacks ready, locked=true zone=zone_snacks
+    [Main] Businesses=3 locked=2
+    [Main] Active shelves=1/3
+    [Main] ClientSpawner=true
+    [Main] HUD=true MissionGuide=true UnlockPads=3
+- Export HTML5: OK
+  `godot --headless --export-release "HTML5" exports/html5/index.html`
+  genera index.html + index.js + index.pck (66KB) + index.wasm (35MB)
+  sin errores. business.gd.remap incluido en el .pck.
+- Smoke del item: OK
+  `DEVIN_SMOKE=1 godot --headless --quit-after 120`:
+    active shelves pre-filled
+    [Business] biz_perfume unlocked (zone zone_perfume)
+    forced unlock zone=zone_perfume
+  El flujo unlock→reactivar negocio funciona. BIZ-1 (unlocked)
+  tiene shelf activo desde el inicio. BIZ-2/3 locked hasta que el
+  jugador paga el pad.
+
+## Próximo item sugerido
+BIZ-4 — Mini taller/fábrica (materia prima → máquina → producto →
+enviar a estante). Cierra la capa 3 junto con BIZ-5 (almacén).
+
+## Problemas encontrados
+- ninguno crítico. El WIP de r10 (business.gd, shelf.gd, client.gd,
+  client_spawner.gd, Business.tscn) sobrevivió como untracked/
+  modified y era funcional — solo faltaba integrar en Main.tscn y
+  actualizar main.gd. Confirmada la lección r10: el patrón Business
+  escala para 3 negocios en 1 iteración.
+- Nota menor: pickup.gd no tiene flag `locked` propio; business.gd
+  desactiva pickups via visible/set_process/monitoring deferido.
+  _physics_process de pickup sigue corriendo regen en locked pero
+  es invisible e inofensivo (no se puede recoger por monitoring=false).

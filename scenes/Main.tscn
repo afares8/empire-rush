@@ -3,10 +3,8 @@
 [ext_resource type="Script" path="res://scripts/game/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2_player"]
 [ext_resource type="Script" path="res://scripts/game/camera.gd" id="3_camera"]
-[ext_resource type="PackedScene" path="res://scenes/Pickup.tscn" id="4_pickup"]
-[ext_resource type="PackedScene" path="res://scenes/Shelf.tscn" id="5_shelf"]
+[ext_resource type="PackedScene" path="res://scenes/Business.tscn" id="4_biz"]
 [ext_resource type="Script" path="res://scripts/game/client_spawner.gd" id="6_spawner"]
-[ext_resource type="PackedScene" path="res://scenes/UnlockPad.tscn" id="7_pad"]
 [ext_resource type="PackedScene" path="res://scenes/HUD.tscn" id="8_hud"]
 [ext_resource type="Script" path="res://scripts/ui/mission_guide.gd" id="9_guide"]
 
@@ -25,27 +23,36 @@ color = Color(0.16, 0.2, 0.16, 1)
 [node name="Player" parent="World" instance=ExtResource("2_player")]
 position = Vector2(0, 0)
 
-[node name="PickupA" parent="World" instance=ExtResource("4_pickup")]
-position = Vector2(-180, -120)
+[node name="BusinessBIZ1" parent="World" instance=ExtResource("4_biz")]
+position = Vector2(-120, -60)
+business_id = "biz_market"
+business_name = "Puesto Callejero"
+product_name = "camiseta"
+product_value = 5.0
+start_locked = false
+tint = Color(0.55, 0.75, 0.55, 1)
 
-[node name="PickupB" parent="World" instance=ExtResource("4_pickup")]
-position = Vector2(160, 100)
+[node name="BusinessBIZ2" parent="World" instance=ExtResource("4_biz")]
+position = Vector2(240, -180)
+business_id = "biz_perfume"
+business_name = "Estante de Perfumes"
+product_name = "perfume"
+product_value = 15.0
+start_locked = true
+unlock_zone_id = "zone_perfume"
+unlock_price = 120.0
+tint = Color(0.75, 0.55, 0.78, 1)
 
-[node name="ShelfA" parent="World" instance=ExtResource("5_shelf")]
-position = Vector2(-60, -40)
-
-[node name="ShelfB" parent="World" instance=ExtResource("5_shelf")]
-position = Vector2(80, 60)
-
-[node name="UnlockPadA" parent="World" instance=ExtResource("7_pad")]
-position = Vector2(220, -160)
-zone_id = "zone_market"
-price = 50.0
-
-[node name="UnlockPadB" parent="World" instance=ExtResource("7_pad")]
-position = Vector2(-260, 180)
-zone_id = "zone_perfume"
-price = 120.0
+[node name="BusinessBIZ3" parent="World" instance=ExtResource("4_biz")]
+position = Vector2(-280, 180)
+business_id = "biz_snacks"
+business_name = "Mini Market"
+product_name = "snack"
+product_value = 3.0
+start_locked = true
+unlock_zone_id = "zone_snacks"
+unlock_price = 400.0
+tint = Color(0.85, 0.65, 0.4, 1)
 
 [node name="ClientSpawner" type="Node2D" parent="World"]
 position = Vector2(0, 0)

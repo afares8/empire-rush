@@ -1,0 +1,19 @@
+[gd_scene load_steps=5 format=3 uid="uid://business_scene_ter"]
+
+[ext_resource type="Script" path="res://scripts/game/business.gd" id="1_biz"]
+[ext_resource type="PackedScene" path="res://scenes/Pickup.tscn" id="2_pickup"]
+[ext_resource type="PackedScene" path="res://scenes/Shelf.tscn" id="3_shelf"]
+[ext_resource type="PackedScene" path="res://scenes/UnlockPad.tscn" id="4_pad"]
+
+[node name="Business" type="Node2D"]
+script = ExtResource("1_biz")
+
+[node name="Pickup" parent="." instance=ExtResource("2_pickup")]
+position = Vector2(-90, 0)
+
+[node name="Shelf" parent="." instance=ExtResource("3_shelf")]
+position = Vector2(70, 0)
+
+[node name="Pad" parent="." instance=ExtResource("4_pad")]
+position = Vector2(0, 110)
+visible = true
