@@ -177,6 +177,104 @@ lanzamiento.**
 
 ---
 
+## 🎯 FASE B — Pulido MVP (capa 7)
+
+> Esta capa se construye SOLO después de que todas las capas 1–6
+> están completadas. El objetivo es que el MVP sea **adictivo de
+> verdad** según BLUEPRINT.md §25 (primer minuto), §26 (cómo debe
+> sentirse), §32 (qué es lo adictivo), §33 (qué cansa).
+>
+> La AI genera items aquí cuando evalúa que el MVP no cumple alguno
+> de esos criterios. Los items son ejemplos — la AI debe crear los
+> específicos según lo que observe al probar el juego.
+
+- [ ] **POLISH-1** (P1, S) — Feedback visual + sonoro al recoger
+  dinero: partículas, tween de scale, sonido placeholder. Criterio:
+  recoger dinero se siente satisfactorio.
+- [ ] **POLISH-2** (P1, S) — Tween de cash volando al HUD al
+  recoger. Criterio: el dinero vuela visualmente al contador.
+- [ ] **POLISH-3** (P1, S) — Screen shake suave al desbloquear zona.
+  Criterio: el desbloqueo se siente impactante.
+- [ ] **POLISH-4** (P1, S) — Glow/pulso en pads de desbloqueo para
+  llamar la atención. Criterio: los pads son visualmente atractivos.
+- [ ] **POLISH-5** (P1, S) — Indicador de "meta cercana" siempre
+  visible en el HUD (próximo pad alcanzable). Criterio: siempre hay
+  una meta visible.
+- [ ] **POLISH-6** (P1, S) — Balance de precios: ajustar para que
+  el progreso sea ni muy lento ni muy rápido (meta corta cada 1–2
+  min). Criterio: el progreso se siente bien.
+- [ ] **POLISH-7** (P1, S) — Spawn rate de clientes ajustado para
+  caos controlado (ni vacío ni abrumador). Criterio: el ritmo se
+  siente bien.
+- [ ] **POLISH-8** (P2, S) — Animación de clientes: idle, walk,
+  compra (puede ser tween simple sobre ColorRect). Criterio: los
+  clientes se sienten vivos.
+- [ ] **POLISH-9** (P2, S) — Música de fondo placeholder + SFX
+  (libres o generados). Criterio: hay audio y no molesta.
+- [ ] **POLISH-10** (P2, S) — Tutorial contextual pulido (textos
+  que aparecen al cumplir condiciones, no modal blocking). Criterio:
+  el primer minuto guía sin frustrar.
+
+---
+
+## 🎯 FASE C — Versión 1.0+ (capa 8)
+
+> Esta capa se construye SOLO después de que la AI juzgue que el MVP
+> está "listo" (cumple §25, §26, §32, §33). Hasta entonces, NO se
+> toca. Los items aquí se generan basándose en BLUEPRINT.md §20
+> (versión 1.0) y secciones marcadas [1.0+].
+
+- [ ] **V1-1** (P1, M) — Farmacia (negocio nuevo, §8 Negocio 3).
+  Cuidado personal, vitaminas ficticias, higiene, belleza.
+- [ ] **V1-2** (P1, M) — Electrónica (negocio nuevo, §8 Negocio 5).
+  Celulares, audífonos, consolas ficticias, tablets, gadgets.
+- [ ] **V1-3** (P1, L) — Fábrica avanzada (§8 Negocio 6 expandido).
+  Materia prima → máquina → caja → camión. Mayor profundidad.
+- [ ] **V1-4** (P1, L) — Bodega + logística + sistema de camión
+  (§8 Negocio 7). Cajas, pallets, camiones, rutas.
+- [ ] **V1-5** (P1, M) — Puerto + contenedores (§6 Etapa 5).
+  Llegada de contenedores, descarga, distribución.
+- [ ] **V1-6** (P1, L) — Segunda ciudad (§6 Etapa 7). Sucursales,
+  gerentes regionales, logística inter-ciudad.
+- [ ] **V1-7** (P1, M) — Ligas semanales completas (§10). 8 ligas,
+  30–50 jugadores por liga, premios semanales.
+- [ ] **V1-8** (P1, M) — Sistema de estatus/títulos (§11). 9
+  títulos que desbloquean ropa/oficina/vehículos.
+- [ ] **V1-9** (P1, M) — Personalización del personaje (§12).
+  Hombre/mujer, ropa casual/elegante/traje, accesorios.
+- [ ] **V1-10** (P1, M) — Empleados premium (§13 expandido, §30 D).
+  Cajero rápido, gerente experto, reponedor veloz, influencer, etc.
+- [ ] **V1-11** (P1, M) — Skins y personalización (§30 E). Tienda,
+  caja, empleados, vehículos, fábricas, oficinas.
+- [ ] **V1-12** (P1, L) — Pase de temporada mensual (§15, §30 F).
+  30 días, misiones, skins, empleados, decoraciones, boosts.
+- [ ] **V1-13** (P1, M) — Cofres transparentes con probabilidades
+  visibles (§30 G). Común/raro/épico/empresarial/temporada.
+- [ ] **V1-14** (P1, M) — Monetización real: IAP con Godot
+  in-app purchases (§30 A–H). Gems, remove ads, starter pack.
+- [ ] **V1-15** (P1, M) — Ads recompensados reales (AdMob).
+  §15, §30.1.
+- [ ] **V1-16** (P1, M) — Daily Login + Daily Missions + Weekly
+  Goals (§38). Recompensa diaria creciente, misiones, metas.
+- [ ] **V1-17** (P1, M) — Eventos globales (§36). Global Trade
+  Fair, Black Friday Rush, Factory Madness, Luxury Week, etc.
+- [ ] **V1-18** (P1, M) — Sistema de logros y trofeos (§37).
+  Started From Zero, First Million, Factory King, etc.
+- [ ] **V1-19** (P1, M) — Sistema de fatiga + reenganche (§40).
+  Detectar cansancio, ofrecer evento especial, recompensa de
+  regreso, meta cercana.
+- [ ] **V1-20** (P1, L) — Perfil público de imperio completo (§34).
+  Nombre, avatar, logo, título, Empire Value, negocios, ciudades,
+  fábricas, empleados legendarios, trofeos, lema.
+- [ ] **V1-21** (P1, M) — Export Android (APK/AAB) + Google Play
+  Console setup. §28 blueprint.
+- [ ] **V1-22** (P1, M) — Export iOS + App Store Connect setup.
+  §28 blueprint.
+- [ ] **V1-23** (P1, M) — Guardado en la nube (§20). Sync de
+  progreso entre dispositivos.
+
+---
+
 ## 📦 Completados
 
 (vacío — los items se mueven aquí al cerrarse)

@@ -42,29 +42,39 @@ Para cada ronda (1 a 5), determina:
    complejidad subestimada, dependencia oculta, Godot no instalado,
    bug bloqueante)?
 
-2. **¿Hubo iteraciones "fix-first"** (headless run roto en el gate
+2. **¿En qué fase terminó cada ronda?** El prompt define 3 fases:
+   - **Fase A** (construyendo MVP, capas 1–6)
+   - **Fase B** (puliendo MVP hasta que sea adictivo, capa 7)
+   - **Fase C** (versión 1.0+, capa 8)
+   Lee el campo "Fase actual" de cada snapshot. ¿El overnight
+   avanzó de A → B → C? ¿Se quedó en A? ¿Saltó de A a C sin pulir
+   (anti-patrón CRÍTICO)?
+
+3. **¿Hubo iteraciones "fix-first"** (headless run roto en el gate
    que consumió toda la iteración)? ¿Cuántas? ¿Es un patrón
    recurrente entre rondas?
 
-3. **¿Hubo timeouts** de sesión? ¿En qué item? ¿Indica que el item
+4. **¿Hubo timeouts** de sesión? ¿En qué item? ¿Indica que el item
    es demasiado grande para 1 iteración y debería dividirse?
 
-4. **¿Qué items del roadmap NO se tocaron** porque las rondas se
+5. **¿Qué items del roadmap NO se tocaron** porque las rondas se
    fueron por otro lado? ¿El orden de capas (1→6) se respetó?
 
-5. **¿Aparecieron anti-patrones** que el prompt prohíbe pero que
+6. **¿Aparecieron anti-patrones** que el prompt prohíbe pero que
    Devin hizo igual? (loops de subagentes, features isla, contenido
-   antes del loop, C# en vez de GDScript, etc.)
+   antes del loop, C# en vez de GDScript, saltarse Fase B, etc.)
 
-6. **¿Se generaron snapshots** en `overnight/snapshots/` para cada
+7. **¿Se generaron snapshots** en `overnight/snapshots/` para cada
    iteración? Si falta alguno, anótalo como problema de proceso.
 
-7. **¿El export HTML5 funciona** al final de las 5 rondas? Si no,
+8. **¿El export HTML5 funciona** al final de las 5 rondas? Si no,
    es CRÍTICO — el MVP no es jugable en navegador.
 
-8. **¿El loop adictivo se siente bien**? Esta es la pregunta más
+9. **¿El loop adictivo se siente bien**? Esta es la pregunta más
    importante. Si el loop no engancha en 60 segundos, el MVP no es
    "éxito desde el primer lanzamiento". Sé honesto y crítico.
+   Evalúa contra BLUEPRINT.md §25 (primer minuto), §26 (cómo debe
+   sentirse), §32 (qué es lo adictivo), §33 (qué cansa).
 
 --------------------------------------------------------------------
 PASO 2 — EXTRAER LECCIONES (concretas, accionables, no genéricas)
@@ -144,6 +154,14 @@ Escribe un archivo `overnight/FINAL_REPORT.md` con esta estructura:
 ```markdown
 # Trade Empire Rush — Informe Final del Overnight (5 rondas)
 
+## Fase alcanzada
+- **Fase al final de la ronda 5**: <A (construyendo MVP) | B (puliendo
+  MVP) | C (versión 1.0+)>
+- **Justificación**: <por qué terminó en esa fase>
+- **¿Avanzó A → B → C correctamente?**: <SÍ/NO + explicación>
+- **¿Se saltó la Fase B (pulido)?**: <SÍ/NO — si SÍ, es anti-patrón
+  CRÍTICO>
+
 ## Estado del MVP
 - **Lo que se construyó**: <lista de features completadas, por capa>
 - **Lo que no se construyó**: <items del ROADMAP que quedaron pendientes>
@@ -155,6 +173,11 @@ Escribe un archivo `overnight/FINAL_REPORT.md` con esta estructura:
 - **Satisfacción táctil**: <evaluación del feedback visual/sonoro>
 - **Progreso visible**: <evaluación>
 - **Meta cercana siempre visible**: <evaluación>
+- **Primer minuto (§25)**: <cumple 0–10s/10–20s/20–35s/35–60s?>
+- **Cómo se siente (§26)**: <rápido/satisfactorio/cada 10s pasa algo?>
+- **Qué es adictivo (§32)**: <progreso visual/dinero visible/desbloqueo
+  constante/automatización/eventos?>
+- **Qué cansa (§33)**: <repetitivo/lento/todo igual/sin meta?>
 - **Veredicto**: <"MVP listo para lanzar" / "Necesita N rondas más
   de pulido en X" / "Necesita rework de Y">
 
@@ -165,7 +188,7 @@ Escribe un archivo `overnight/FINAL_REPORT.md` con esta estructura:
 ... (8–15 mejoras, ordenadas por impacto/esfuerzo)
 
 ## Qué más puedo hacer (roadmap a versión 1.0 y más allá)
-### Versión 1.0 (post-MVP)
+### Versión 1.0 (post-MVP) — Fase C
 - <item> — <por qué>
 - <item>
 
@@ -177,7 +200,8 @@ Escribe un archivo `overnight/FINAL_REPORT.md` con esta estructura:
 
 ### Lanzamiento mobile (Android/iOS)
 - <pasos concretos: export presets, keystore, App Store Connect,
-  Google Play Console, IAP, ads reales, etc.>
+  Google Play Console, IAP, ads reales, ranking, login, cloud save
+  y comunidad>
 
 ## Métricas a medir desde el día 1
 - <lista del blueprint sección 22 + cómo implementarlas>
@@ -193,7 +217,8 @@ Escribe un archivo `overnight/FINAL_REPORT.md` con esta estructura:
 
 Sé HONESTO y CRÍTICO en este informe. Si el MVP no es adictivo, dilo.
 Si el loop no se siente bien, dilo. Si faltan 3 rondas más de
-pulido, dilo. El usuario quiere la verdad, no validación falsa.
+pulido, dilo. Si el overnight se saltó la Fase B, dilo. El usuario
+quiere la verdad, no validación falsa.
 
 --------------------------------------------------------------------
 PASO 6 — SNAPSHOT DEL FINE-TUNING

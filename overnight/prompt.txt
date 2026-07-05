@@ -224,20 +224,76 @@ Todo debe estar conectado al loop:
 Una feature isla (sin conexión al loop) NO cuenta como hecha.
 
 --------------------------------------------------------------------
-PASO 3 — SI EL ROADMAP ESTÁ VACÍO
+PASO 3 — FLUJO: MVP → PULIR → 1.0+ (OBLIGATORIO)
 --------------------------------------------------------------------
-Si todos los items del ROADMAP están completados, NO inventes items
-al azar. En su lugar:
+El overnight sigue un flujo de 3 fases secuenciales. La transición
+entre fases la decide la AI basándose en el estado real del juego,
+NO en el número de ronda.
 
-1. Verifica que el export HTML5 funciona y el juego corre en
-   navegador.
-2. Haz un "gap analysis" comparando el MVP contra el blueprint:
-   ¿qué del BLUEPRINT.md no está en el ROADMAP y debería estar para
-   la versión 1.0? Genera items nuevos en el ROADMAP (capa 7+:
-   versión 1.0).
-3. Haz una auditoría jugable: ¿el loop se siente bien? ¿Cada 5–10s
-   pasa algo? ¿Hay meta cercana visible? ¿El dinero se siente
-   satisfactorio al recoger? Documenta hallazgos en el snapshot.
+### Fase A — Construir el MVP (capas 1–6 del ROADMAP)
+Mientras haya items pendientes en las capas 1–6 del ROADMAP, estás
+en Fase A. Construye items por orden de prioridad (capa 1 → 6).
+
+### Fase B — Pulir el MVP hasta que sea adictivo
+Cuando TODOS los items de las capas 1–6 están completados, pasas a
+Fase B. NO avances a 1.0+ todavía. En Fase B, tu trabajo es
+**pulir el MVP hasta que sea adictivo de verdad**. Para decidir si
+el MVP está "listo", evalúa honestamente contra BLUEPRINT.md:
+
+- **§25 Diseño del primer minuto**: ¿el primer minuto cumple el
+  flujo 0–10s llena estante, 10–20s primer cliente + dinero, 20–35s
+  recoge + invierte, 35–60s caos + contrata ayuda?
+- **§26 Cómo debe sentirse**: ¿es rápido, satisfactorio,
+  aspiracional? ¿Cada 10s pasa algo? ¿Cada 1min se desbloquea algo?
+  ¿Cada 5min cambia visualmente?
+- **§32 Qué es lo adictivo**: ¿hay progreso visual inmediato? ¿Metas
+  cortas/medianas/largas visibles? ¿Dinero físico satisfactorio al
+  recoger (feedback visual + sonoro)? ¿Desbloqueo constante?
+  ¿Automatización progresiva? ¿Eventos sorpresa?
+- **§33 Qué cansa**: ¿se siente repetitivo? ¿Progreso demasiado
+  lento? ¿Todo se ve igual? ¿Falta meta grande visible?
+
+Si alguno de estos puntos NO se cumple, estás en Fase B: genera
+items de pulido en el ROADMAP (capa 7 "Pulido MVP") y constrúyelos.
+Ejemplos de items de pulido:
+- Mejorar feedback visual/sonoro al recoger dinero (partículas,
+  tween, sonido).
+- Ajustar balance de precios (progreso ni muy lento ni muy rápido).
+- Agregar tween de cash volando al HUD.
+- Mejorar animación de clientes (idle, walk, compra).
+- Agregar screen shake suave al desbloquear zona.
+- Ajustar spawn rate de clientes para sentir caos controlado.
+- Mejorar visibilidad de pads de desbloqueo (glow, pulso).
+- Agregar indicador de "meta cercana" siempre visible.
+- Pulir transiciones entre negocios (cámara, highlight).
+
+### Fase C — Versión 1.0+ (SOLO si el MVP está listo)
+SOLO cuando la AI juzgue honestamente que el MVP cumple §25, §26,
+§32 y §33 (es adictivo de verdad), avanza a Fase C. En Fase C:
+1. Genera items nuevos en el ROADMAP (capa 8 "Versión 1.0+") basados
+   en BLUEPRINT.md §20 (versión 1.0) y §10, §11, §12, §30, §31,
+   §34, §36, §37, §40, §41 (marcados [1.0+] en el blueprint).
+2. Constrúyelos por orden de prioridad.
+3. NO construyas nada de §17 social, §18 IA, §21 v2.0, §22 v3.0,
+   §35 visitas (esos son 2.0+/3.0+).
+
+### Cómo reportar la fase en el snapshot
+Al final de cada iteración, indica en el snapshot en qué fase estás:
+```
+Fase actual: A (construyendo MVP) | B (puliendo MVP) | C (versión 1.0+)
+Justificación: <por qué estás en esta fase>
+```
+
+### Anti-patrón CRÍTICO
+- NO avances a Fase C (1.0+) si el MVP no es adictivo. Un MVP
+  mediocre + features de 1.0+ a medias es PEOR que un MVP pulido
+  solo. El blueprint dice "éxito MVP desde el primer lanzamiento".
+- NO te quedes en Fase B para siempre (pulido infinito). Si el MVP
+  cumple §25, §26, §32, §33, avanza a Fase C. El juicio debe ser
+  honesto, no perfectionista.
+- Si dudas entre Fase B y Fase C, pregúntate: "¿un jugador real
+  jugaría esto 15–30 min sin aburrirse?" Si la respuesta es SÍ,
+  avanza a Fase C. Si es NO o DUDAS, quédate en Fase B.
 
 --------------------------------------------------------------------
 PASO 4 — ANTI-PATRONES (NO hacer)
