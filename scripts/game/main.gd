@@ -20,6 +20,17 @@ func _ready() -> void:
 	var sh_a: Node = get_node_or_null("World/ShelfA")
 	var sh_b: Node = get_node_or_null("World/ShelfB")
 	print("[Main] Shelves: ShelfA=%s ShelfB=%s" % [sh_a != null, sh_b != null])
+	# Verificar spawner de clientes cargado (loop base, LOOP-5).
+	var spawner: Node = get_node_or_null("World/ClientSpawner")
+	print("[Main] ClientSpawner=%s shelves_group=%d" % [spawner != null, get_tree().get_nodes_in_group("shelves").size()])
+	# Debug smoke: pre-llena estantes para probar el ciclo de clientes
+	# sin requerir input del jugador. Activado por env var DEVIN_SMOKE=1.
+	if OS.get_environment("DEVIN_SMOKE") == "1":
+		for s in get_tree().get_nodes_in_group("shelves"):
+			if "stock" in s and "capacity" in s:
+				s.stock = s.capacity
+				s.emit_signal("stock_changed", s.stock)
+		print("[Main] DEVIN_SMOKE: shelves pre-filled")
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:

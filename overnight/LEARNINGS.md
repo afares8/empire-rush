@@ -80,3 +80,34 @@
   física**: body_entered/body_exited y move_and_slide se resuelven
   en el step de física. process_frame puede no haber avanzado la
   física todavía.
+
+## Ronda 1 (iter LOOP-5/LOOP-6)
+
+- **`_physics_process` NO corre en headless `--quit-after`**: en
+  Godot 4.3 headless con `--quit-after N`, solo `_process` se
+  ejecuta, `_physics_process` nunca se llama. Esto invalida la
+  lección anterior de Ronda 2 que decía que `--quit-after 60`
+  validaba `_physics_process` — solo validaba que `_ready` no
+  crasheara. Para nodos del loop que necesitan correr en headless
+  (spawners, NPCs con movimiento directo), usar `_process`. Para
+  nodos que usan `move_and_slide` (player), `_physics_process` es
+  necesario pero no se puede testear en headless — testear en
+  editor o navegador.
+- **Headless `--quit-after` corre FPS sin cap → delta diminuto**:
+  en headless mode, Godot no limita el FPS, así que cada frame
+  tiene un delta muy pequeño (ej: 0.001s en vez de 0.0167s). Un
+  timer basado en `delta` acumulado puede nunca llegar al umbral
+  en `--quit-after N` frames. Fix: usar `Time.get_ticks_msec()`
+  para tiempo real (wall-clock) en timers y movimiento de NPCs.
+  Esto es robusto tanto en headless como en juego real.
+- **`set_easing` no existe en Godot 4 — es `set_ease`**: 
+  `PropertyTweener.set_easing()` → error "Nonexistent function".
+  El método correcto es `set_ease(Tween.EASE_OUT)`. Verificar
+  siempre los nombres de métodos de Tween contra la docs de Godot 4.
+- **Area2D `body_entered` no fire en headless sin physics tick**:
+  como `_physics_process` no corre, el mundo de física no hace
+  step, y las señales `body_entered`/`body_exited` de Area2D nunca
+  se disparan. El MoneyDrop (Area2D) no se puede testear headless.
+  La colección de dinero se valida por lógica de código, no por
+  smoke test headless. Para testear body_entered, usar script
+  SceneTree con `await physics_frame` (que sí corre physics).
