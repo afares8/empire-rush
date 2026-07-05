@@ -30,3 +30,4 @@ overnight/logs/*.log
 overnight/logs/*.marker
 overnight/logs/*.stale_*
 !overnight/logs/.gitkeep
+nul

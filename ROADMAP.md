@@ -33,7 +33,7 @@ lanzamiento.**
 
 ### Capa 2 — Loop base (recoger → vender → cobrar → invertir)
 
-- [ ] **LOOP-1** (P0, M) — Personaje jugador controlable.
+- [x] **LOOP-1** (P0, M, r2/i1) — Personaje jugador controlable.
   `scripts/game/player.gd` + escena `scenes/Player.tscn`. Movimiento
   top-down con WASD/joystick virtual (mobile). Animación idle/walk
   (puede ser sprite placeholder o ColorRect rotando). Criterio: el
@@ -273,6 +273,11 @@ lanzamiento.**
 - [x] **GODOT-3** (P0, S, r1/i1) — `scenes/Main.tscn` creada con
   Node2D "Main" + "World" + Camera2D. Script `main.gd` arranca sin
   crash. `run/main_scene` ya apuntaba a `res://scenes/Main.tscn`.
+- [x] **LOOP-1** (P0, M, r2/i1) — Personaje jugador controlable.
+  `scripts/game/player.gd` (CharacterBody2D, WASD, accel/friction,
+  bob + squash/stretch placeholder, señal `interact_pressed`) +
+  `scenes/Player.tscn` (Body/Head/Shadow ColorRects). Instanciado en
+  `Main.tscn` con Floor visible. Headless run OK, player spawned.
 
 ---
 
