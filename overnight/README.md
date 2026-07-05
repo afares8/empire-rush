@@ -1,28 +1,34 @@
 # Trade Empire Rush — Overnight
 
-Mini app de control que corre **5 rondas** de build autónomo sobre el
-juego `D:\empire-rush` usando Devin en modo **bypass** (auto-aprueba
-todas las herramientas) y modo **print** (no interactivo: hace el
-trabajo y sale solo al terminar). En la **5ta ronda**, una sesión
-extra de **fine-tuning** analiza los logs de las 5 rondas, extrae
-lecciones, actualiza `LEARNINGS.md`, re-prioriza `ROADMAP.md` y
-produce `overnight/FINAL_REPORT.md` con el informe de mejoras y
-próximos pasos que el usuario pidió.
+Mini app de control que corre en **LOOP INFINITO** sobre el juego
+`D:\empire-rush` usando Devin en modo **bypass** (auto-aprueba todas
+las herramientas) y modo **print** (no interactivo: hace el trabajo y
+sale solo al terminar). Cada **ciclo** = 5 rondas de build + 1
+fine-tuning en la 5ta ronda. Al terminar el ciclo, **reinicia
+automáticamente** (ciclo 2, ciclo 3, ...). Se detiene SOLO con
+Ctrl+C en la ventana del controlador.
 
 ## Filosofía
 
 Igual que el overnight de Magnate (`D:\tec\overnight`), pero adaptado
 a un juego Godot:
 
-1. **Cada ronda** = N iteraciones de build (default 1).
-2. **Fine-tuning en la última ronda**: analiza los logs, extrae
+1. **Cada ciclo** = N rondas (default 5) + 1 fine-tuning en la
+   última ronda del ciclo.
+2. **Fine-tuning en la última ronda de cada ciclo** (ronda 5, 10,
+   15, ...): analiza los logs de las últimas N rondas, extrae
    lecciones, append a `LEARNINGS.md`, re-prioriza `ROADMAP.md`, y
-   produce `FINAL_REPORT.md` con "cómo puedo mejorar, qué más puedo
-   hacer".
+   produce/actualiza `FINAL_REPORT.md` con "cómo puedo mejorar, qué
+   más puedo hacer".
 3. **Auto-merge por ronda**: commitea + PR + merge a `main` (si hay
    remote + gh). Revertible con `git revert -m 1 <sha>`.
-4. **NO es loop infinito**: corre exactamente 5 rondas y sale. El
-   usuario quería "5 rondas y a la quinta fine-tuning".
+4. **LOOP INFINITO**: al terminar el ciclo, reinicia automáticamente.
+   Se detiene solo con Ctrl+C. Cada ronda tiene un número global
+   único (ronda 1, 2, 3, ... sin resetear entre ciclos) para que
+   logs/snapshots/branches no colisionen.
+5. **Timeout por sesión**: 90 min (igual que `D:\tec\overnight`). Si
+   una sesión excede el timeout, se mata el árbol de procesos y se
+   continúa con la siguiente.
 
 ## Progresión por capas (prioridad del roadmap)
 

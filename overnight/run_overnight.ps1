@@ -1,18 +1,31 @@
 # run_overnight.ps1 - Controlador del overnight de Empire Rush.
 #
-# Diferencia vs D:\tec\overnight\run_overnight.ps1:
-#   - NO es loop infinito. Corre exactamente N rondas (default 5) y sale.
-#   - Fine-tuning SOLO en la ultima ronda (default ronda 5), no cada ronda.
-#   - Al final, imprime un resumen ejecutivo y apunta a FINAL_REPORT.md.
-#   - Auto-merge por ronda (commitea + PR + merge a main) igual que el original.
+# LOOP INFINITO (igual que D:\tec\overnight\run_overnight.ps1):
+#   - Cada "ciclo" = N rondas (default 5) + 1 fine-tuning en la ultima
+#     ronda del ciclo.
+#   - Al terminar el ciclo, vuelve a empezar automaticamente (ciclo 2,
+#     ciclo 3, ...). Se detiene SOLO con Ctrl+C en la ventana del
+#     controlador.
+#   - Cada ronda tiene un numero global unico (ronda 1, 2, 3, ... sin
+#     resetear entre ciclos) para que logs/snapshots/branches no
+#     colisionen.
+#   - Fine-tuning SOLO en la ultima ronda de cada ciclo (default ronda
+#     5, 10, 15, ...). El fine-tuning analiza las ultimas N rondas,
+#     extrae lecciones, actualiza LEARNINGS.md y produce/actualiza
+#     FINAL_REPORT.md.
+#   - Auto-merge por ronda (commitea + PR + merge a main) igual que el
+#     original.
+#   - Timeout por sesion: 90 min (igual que D:\tec\overnight).
 #
 # Uso:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File run_overnight.ps1
-#   powershell -NoProfile -ExecutionPolicy Bypass -File run_overnight.ps1 -TotalRounds 5 -IterationsPerRound 1 -PauseSeconds 30
+#   powershell -NoProfile -ExecutionPolicy Bypass -File run_overnight.ps1 -RoundsPerCycle 5 -IterationsPerRound 1 -PauseSeconds 30
 #   powershell -NoProfile -ExecutionPolicy Bypass -File run_overnight.ps1 -AutoMerge:$false
+#
+# Para detener: Ctrl+C en la ventana del controlador.
 
 param(
-    [int]$TotalRounds             = 5,
+    [int]$RoundsPerCycle          = 5,
     [int]$IterationsPerRound      = 1,
     [int]$PauseSeconds            = 30,
     [int]$SessionTimeoutMinutes   = 90,
@@ -363,163 +376,192 @@ function Invoke-Session([string]$script, [hashtable]$extraArgs, [string]$label, 
 }
 
 # ------------------------------------------------------------------
-# Cuerpo principal: 5 rondas, fine-tuning en la ultima, NO loop infinito.
+# Cuerpo principal: LOOP INFINITO de ciclos.
+# Cada ciclo = N rondas + 1 fine-tuning en la ultima ronda del ciclo.
+# Al terminar el ciclo, vuelve a empezar automaticamente.
+# Se detiene SOLO con Ctrl+C en la ventana del controlador.
 # ------------------------------------------------------------------
 $controllerStart = Get-Date
 Write-Host "=========================================================="
-Write-Host " Devin Overnight Controller - EMPIRE RUSH"
+Write-Host " Devin Overnight Controller - EMPIRE RUSH (LOOP INFINITO)"
 Write-Host "----------------------------------------------------------"
-Write-Host " Total de rondas       : $TotalRounds"
-Write-Host " Iteraciones por ronda : $IterationsPerRound"
-Write-Host " Fine-tuning en ronda  : $TotalRounds (ultima)"
-Write-Host " Pausa                 : $PauseSeconds s entre sesiones"
-Write-Host " Timeout por sesion    : $SessionTimeoutMinutes min"
-Write-Host " Directorio            : $WorkDir"
-Write-Host " Prompt build          : $promptFile"
-Write-Host " Prompt fine-tuning    : $finetunePrompt"
-Write-Host " Auto-merge            : $AutoMerge"
-Write-Host " Logs                  : $logDir"
-Write-Host " Inicio                : $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+Write-Host " Rondas por ciclo       : $RoundsPerCycle"
+Write-Host " Iteraciones por ronda  : $IterationsPerRound"
+Write-Host " Fine-tuning en ronda   : $RoundsPerCycle de cada ciclo (5, 10, 15, ...)"
+Write-Host " Pausa                  : $PauseSeconds s entre sesiones"
+Write-Host " Timeout por sesion     : $SessionTimeoutMinutes min"
+Write-Host " Directorio             : $WorkDir"
+Write-Host " Prompt build           : $promptFile"
+Write-Host " Prompt fine-tuning     : $finetunePrompt"
+Write-Host " Auto-merge             : $AutoMerge"
+Write-Host " Logs                   : $logDir"
+Write-Host " Inicio                 : $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+Write-Host " >>> Para detener: Ctrl+C en esta ventana <<<"
 Write-Host "=========================================================="
 Write-Host ""
 
-$roundResults = @()
+$globalRound = 0
+$ciclo = 0
 
-for ($round = 1; $round -le $TotalRounds; $round++) {
-    $roundStart = Get-Date
+while ($true) {
+    $ciclo++
+    $cicloStart = Get-Date
     Write-Host "##########################################################"
-    Write-Host "## RONDA $round / $TotalRounds  (inicio $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))"
+    Write-Host "## CICLO $ciclo  (inicio $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))"
+    Write-Host "## $RoundsPerCycle rondas + fine-tuning en la ultima"
     Write-Host "##########################################################"
     Write-Host ""
 
-    # ---- Fase 0: sync con origin/main (si hay remote) ----
-    Push-Location $WorkDir
-    try {
-        $hasRemote = $false
-        try { $remotes = & git remote 2>&1; if ($remotes -match "origin") { $hasRemote = $true } } catch {}
-        if ($hasRemote) {
-            Write-Host "  [Fase 0] Sincronizando con origin/main..."
-            & git fetch origin main 2>&1 | ForEach-Object { Write-Host "    $_" }
-            $mergeOut = & git merge origin/main --no-edit 2>&1
-            $mergeExit = $LASTEXITCODE
-            $mergeOut | ForEach-Object { Write-Host "    $_" }
-            if ($mergeExit -ne 0) {
-                Write-Host "  [Fase 0] Merge con origin/main tuvo conflictos. Abortando merge."
-                & git merge --abort 2>&1 | Out-Null
+    for ($i = 1; $i -le $RoundsPerCycle; $i++) {
+        $globalRound++
+        $round = $globalRound
+        $roundStart = Get-Date
+        $isLastOfCycle = ($i -eq $RoundsPerCycle)
+        Write-Host "##########################################################"
+        Write-Host "## RONDA $round  (ciclo $ciclo, ronda $i/$RoundsPerCycle)  (inicio $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))"
+        Write-Host "##########################################################"
+        Write-Host ""
+
+        # ---- Fase 0: sync con origin/main (si hay remote) ----
+        Push-Location $WorkDir
+        try {
+            $hasRemote = $false
+            try { $remotes = & git remote 2>&1; if ($remotes -match "origin") { $hasRemote = $true } } catch {}
+            if ($hasRemote) {
+                Write-Host "  [Fase 0] Sincronizando con origin/main..."
+                & git fetch origin main 2>&1 | ForEach-Object { Write-Host "    $_" }
+                $mergeOut = & git merge origin/main --no-edit 2>&1
+                $mergeExit = $LASTEXITCODE
+                $mergeOut | ForEach-Object { Write-Host "    $_" }
+                if ($mergeExit -ne 0) {
+                    Write-Host "  [Fase 0] Merge con origin/main tuvo conflictos. Abortando merge."
+                    & git merge --abort 2>&1 | Out-Null
+                }
+            }
+        } catch {
+            Write-Host "  [Fase 0] WARN: $_"
+        }
+        finally { Pop-Location }
+
+        # ---- Fase 1: N iteraciones de build ----
+        Push-Location $WorkDir
+        try { $roundStartCommit = (& git rev-parse HEAD 2>&1).Trim() } catch { $roundStartCommit = "" }
+        finally { Pop-Location }
+        Write-Host "  [Fase 1] Baseline de ronda: $roundStartCommit"
+
+        $roundHadTimeout = $false
+        for ($it = 1; $it -le $IterationsPerRound; $it++) {
+            $label = "r${round}_iter_${it}"
+            Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] === Ronda $round - Iteracion $it / $IterationsPerRound ==="
+            $ok = Invoke-Session -script $sessionPs1 `
+                -extraArgs @{ Iteration = $it; Round = $round; WorkDir = $WorkDir; PromptFile = $promptFile; LogFile = (Join-Path $logDir "${label}.log"); DoneMarker = (Join-Path $logDir "done_${label}.marker") } `
+                -label $label -timeoutMin $SessionTimeoutMinutes
+
+            if ($ok) {
+                Save-IterationWork -round $round -iter $it -workDir $WorkDir
+            } else {
+                Write-Host "  [Fase 1] Sesion fallo. Reseteando arbol a ultimo WIP commit..."
+                Reset-FailedIteration -workDir $WorkDir
+                $roundHadTimeout = $true
+            }
+
+            if ($it -lt $IterationsPerRound) {
+                Write-Host "Pausando $PauseSeconds segundos..."
+                Start-Sleep -Seconds $PauseSeconds
+                Write-Host ""
             }
         }
-    } catch {
-        Write-Host "  [Fase 0] WARN: $_"
-    }
-    finally { Pop-Location }
 
-    # ---- Fase 1: N iteraciones de build ----
-    Push-Location $WorkDir
-    try { $roundStartCommit = (& git rev-parse HEAD 2>&1).Trim() } catch { $roundStartCommit = "" }
-    finally { Pop-Location }
-    Write-Host "  [Fase 1] Baseline de ronda: $roundStartCommit"
-
-    $roundHadTimeout = $false
-    $roundItemsCompleted = 0
-    for ($i = 1; $i -le $IterationsPerRound; $i++) {
-        $label = "r${round}_iter_${i}"
-        Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] === Ronda $round - Iteracion $i / $IterationsPerRound ==="
-        $ok = Invoke-Session -script $sessionPs1 `
-            -extraArgs @{ Iteration = $i; Round = $round; WorkDir = $WorkDir; PromptFile = $promptFile; LogFile = (Join-Path $logDir "${label}.log"); DoneMarker = (Join-Path $logDir "done_${label}.marker") } `
-            -label $label -timeoutMin $SessionTimeoutMinutes
-
-        if ($ok) {
-            Save-IterationWork -round $round -iter $i -workDir $WorkDir
-        } else {
-            Write-Host "  [Fase 1] Sesion fallo. Reseteando arbol a ultimo WIP commit..."
-            Reset-FailedIteration -workDir $WorkDir
-            $roundHadTimeout = $true
-        }
-
-        if ($i -lt $IterationsPerRound) {
-            Write-Host "Pausando $PauseSeconds segundos..."
-            Start-Sleep -Seconds $PauseSeconds
+        # ---- Fase 2: fine-tuning SOLO en la ultima ronda del ciclo ----
+        $ftOk = $false
+        if ($isLastOfCycle) {
             Write-Host ""
-        }
-    }
+            Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] === Ronda $round - FINE-TUNING (fin del ciclo $ciclo, analisis de las $RoundsPerCycle rondas) ==="
+            $ftLabel = "r${round}_finetune"
+            $ftLog   = Join-Path $logDir "${ftLabel}.log"
+            $ftMark  = Join-Path $logDir "done_${ftLabel}.marker"
+            $ftOk = Invoke-Session -script $finetunePs1 `
+                -extraArgs @{ Round = $round; WorkDir = $WorkDir; PromptFile = $finetunePrompt; LogFile = $ftLog; DoneMarker = $ftMark; LogDir = $logDir } `
+                -label $ftLabel -timeoutMin $SessionTimeoutMinutes
 
-    # ---- Fase 2: fine-tuning SOLO en la ultima ronda ----
-    $ftOk = $false
-    if ($round -eq $TotalRounds) {
+            if (-not $ftOk) {
+                Write-Host "  [Fase 2] Fine-tuning fallo. Reseteando arbol a ultimo WIP commit..."
+                Reset-FailedIteration -workDir $WorkDir
+            }
+        } else {
+            Write-Host "  [Fase 2] Ronda $i < $RoundsPerCycle: fine-tuning se salta (solo en la ultima ronda del ciclo)."
+        }
+
+        # ---- Fase 3: auto-merge por PR ----
+        if ($AutoMerge) {
+            Write-Host ""
+            Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] === Ronda $round - AUTO-MERGE ==="
+            try {
+                Invoke-AutoMerge -round $round -workDir $WorkDir -roundStartCommit $roundStartCommit
+            }
+            catch {
+                Write-Host "  [AutoMerge] FALLO GRAVE: $_"
+            }
+        }
+
+        $roundDur = (Get-Date) - $roundStart
+        $roundDurStr = "{0}h {1}m {2}s" -f $roundDur.Hours, $roundDur.Minutes, $roundDur.Seconds
         Write-Host ""
-        Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] === Ronda $round - FINE-TUNING (analisis de las $TotalRounds rondas) ==="
-        $ftLabel = "r${round}_finetune"
-        $ftLog   = Join-Path $logDir "${ftLabel}.log"
-        $ftMark  = Join-Path $logDir "done_${ftLabel}.marker"
-        $ftOk = Invoke-Session -script $finetunePs1 `
-            -extraArgs @{ Round = $round; WorkDir = $WorkDir; PromptFile = $finetunePrompt; LogFile = $ftLog; DoneMarker = $ftMark; LogDir = $logDir } `
-            -label $ftLabel -timeoutMin $SessionTimeoutMinutes
-
-        if (-not $ftOk) {
-            Write-Host "  [Fase 2] Fine-tuning fallo. Reseteando arbol a ultimo WIP commit..."
-            Reset-FailedIteration -workDir $WorkDir
+        Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Ronda $round completada (duracion $roundDurStr, timeout=$roundHadTimeout, finetune=$($isLastOfCycle -and $ftOk))."
+        if (-not $isLastOfCycle) {
+            Write-Host "Pausando $PauseSeconds segundos antes de la siguiente ronda..."
+            Start-Sleep -Seconds $PauseSeconds
         }
-    } else {
-        Write-Host "  [Fase 2] Ronda $round < $TotalRounds: fine-tuning se salta (solo en la ultima ronda)."
-    }
-
-    # ---- Fase 3: auto-merge por PR ----
-    if ($AutoMerge) {
         Write-Host ""
-        Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] === Ronda $round - AUTO-MERGE ==="
-        try {
-            Invoke-AutoMerge -round $round -workDir $WorkDir -roundStartCommit $roundStartCommit
-        }
-        catch {
-            Write-Host "  [AutoMerge] FALLO GRAVE: $_"
-        }
     }
 
-    $roundDur = (Get-Date) - $roundStart
-    $roundDurStr = "{0}h {1}m {2}s" -f $roundDur.Hours, $roundDur.Minutes, $roundDur.Seconds
-    $roundResults += [PSCustomObject]@{
-        Round = $round
-        Duration = $roundDurStr
-        HadTimeout = $roundHadTimeout
-        FinetuneRan = ($round -eq $TotalRounds -and $ftOk)
+    # ---- Fin del ciclo: resumen + pausa antes del siguiente ciclo ----
+    $cicloDur = (Get-Date) - $cicloStart
+    $cicloDurStr = "{0}h {1}m {2}s" -f $cicloDur.Hours, $cicloDur.Minutes, $cicloDur.Seconds
+    Write-Host "=========================================================="
+    Write-Host " CICLO $ciclo COMPLETADO (duracion $cicloDurStr)"
+    Write-Host "----------------------------------------------------------"
+    Write-Host " Rondas ejecutadas: $RoundsPerCycle (rondas globales $(($ciclo-1)*$RoundsPerCycle+1) a $($ciclo*$RoundsPerCycle))"
+    Write-Host " Fine-tuning: $(if ($ftOk) { 'OK' } else { 'FAIL/SKIP' })"
+    $finalReport = Join-Path $scriptDir "FINAL_REPORT.md"
+    if (Test-Path $finalReport) {
+        Write-Host " Informe final actualizado: $finalReport" -ForegroundColor Green
+        Write-Host " >>> LEE overnight\FINAL_REPORT.md <<<" -ForegroundColor Yellow
     }
+    Write-Host " Logs en        : $logDir"
+    Write-Host " Snapshots en   : $scriptDir\snapshots\"
+    Write-Host " Lecciones en   : $scriptDir\LEARNINGS.md"
     Write-Host ""
-    Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Ronda $round completada (duracion $roundDurStr)."
-    if ($round -lt $TotalRounds) {
-        Write-Host "Pausando $PauseSeconds segundos antes de la siguiente ronda..."
-        Start-Sleep -Seconds $PauseSeconds
-    }
+    Write-Host " >>> REINICIANDO CICLO $($ciclo + 1) en $PauseSeconds segundos (Ctrl+C para detener) <<<" -ForegroundColor Cyan
+    Write-Host "=========================================================="
+    Start-Sleep -Seconds $PauseSeconds
     Write-Host ""
 }
 
 # ------------------------------------------------------------------
-# Resumen final
+# Resumen final (solo se alcanza con Ctrl+C)
 # ------------------------------------------------------------------
 $totalDur = (Get-Date) - $controllerStart
 $totalDurStr = "{0}h {1}m {2}s" -f $totalDur.Hours, $totalDur.Minutes, $totalDur.Seconds
 
 Write-Host ""
 Write-Host "=========================================================="
-Write-Host " OVERNIGHT EMPIRE RUSH COMPLETADO"
+Write-Host " OVERNIGHT EMPIRE RUSH DETENIDO"
 Write-Host "----------------------------------------------------------"
-Write-Host " Total de rondas : $TotalRounds"
-Write-Host " Duracion total  : $totalDurStr"
-Write-Host " Fin             : $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
-Write-Host ""
-Write-Host " Resumen por ronda:"
-$roundResults | ForEach-Object {
-    Write-Host ("  Ronda {0}: {1} (timeout={2}, finetune={3})" -f $_.Round, $_.Duration, $_.HadTimeout, $_.FinetuneRan)
-}
-Write-Host ""
-Write-Host " Logs en        : $logDir"
-Write-Host " Snapshots en   : $scriptDir\snapshots\"
-Write-Host " Lecciones en   : $scriptDir\LEARNINGS.md"
+Write-Host " Ciclos completados : $ciclo"
+Write-Host " Rondas totales     : $globalRound"
+Write-Host " Duracion total     : $totalDurStr"
+Write-Host " Fin                : $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+Write-Host " Logs en            : $logDir"
+Write-Host " Snapshots en       : $scriptDir\snapshots\"
+Write-Host " Lecciones en       : $scriptDir\LEARNINGS.md"
 $finalReport = Join-Path $scriptDir "FINAL_REPORT.md"
 if (Test-Path $finalReport) {
-    Write-Host " Informe final  : $finalReport" -ForegroundColor Green
+    Write-Host " Informe final      : $finalReport" -ForegroundColor Green
     Write-Host ""
     Write-Host " >>> LEE overnight\FINAL_REPORT.md para el informe de mejoras y proximos pasos <<<" -ForegroundColor Yellow
 } else {
-    Write-Host " Informe final  : (no se genero — revisa el log del fine-tuning)" -ForegroundColor Yellow
+    Write-Host " Informe final      : (no se genero — revisa el log del fine-tuning)" -ForegroundColor Yellow
 }
+Write-Host "=========================================================="
 Write-Host "=========================================================="

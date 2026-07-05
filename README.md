@@ -7,9 +7,11 @@
 ## Qué es esto
 
 Este repo contiene el **proyecto Godot** del juego + el sistema
-**overnight** que lo construye de forma autónoma en 5 rondas, con
-fine-tuning en la 5ta ronda que produce un informe de mejoras y
-próximos pasos.
+**overnight** que lo construye de forma autónoma en **loop infinito**:
+cada ciclo = 5 rondas de build + fine-tuning en la 5ta ronda que
+produce un informe de mejoras y próximos pasos. Al terminar el ciclo,
+reinicia automáticamente (ciclo 2, ciclo 3, ...). Se detiene solo
+con Ctrl+C.
 
 El diseño completo del juego está en [`BLUEPRINT.md`](BLUEPRINT.md).
 El backlog priorizado está en [`ROADMAP.md`](ROADMAP.md).
@@ -49,10 +51,11 @@ cd D:\empire-rush\overnight
 start.bat
 ```
 
-Esto corre **5 rondas** de build autónomo (1 iteración por ronda por
-default) + fine-tuning en la 5ta ronda. Al final, lee
-`overnight\FINAL_REPORT.md` para el informe de mejoras y próximos
-pasos.
+Esto corre en **loop infinito**: cada ciclo = 5 rondas de build
+autónomo (1 iteración por ronda por default) + fine-tuning en la
+5ta ronda. Al terminar el ciclo, reinicia automáticamente. Detener
+con Ctrl+C. Lee `overnight\FINAL_REPORT.md` para el informe de
+mejoras y próximos pasos (se actualiza en cada fine-tuning).
 
 Para más opciones ver [`overnight/README.md`](overnight/README.md).
 
@@ -70,5 +73,8 @@ D:\empire-rush\godot\godot.exe --path D:\empire-rush
 
 - **Ronda 0 (setup)**: esqueleto Godot + overnight listos. Sin código
   de juego todavía.
-- **Rondas 1–5**: construidas por el overnight.
-- **Fine-tuning (ronda 5)**: produce `FINAL_REPORT.md`.
+- **Ciclo 1 (rondas 1–5)**: construye el MVP. Fine-tuning en ronda 5.
+- **Ciclo 2+ (rondas 6–10, 11–15, ...)**: sigue puliendo y agregando
+  features 1.0+ según el juicio de la AI en el fine-tuning.
+- **`FINAL_REPORT.md`**: se actualiza en cada fine-tuning (rondas 5,
+  10, 15, ...).
