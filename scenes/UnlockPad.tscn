@@ -1,0 +1,47 @@
+[gd_scene load_steps=3 format=3 uid="uid://unlockpad_scene_ter"]
+
+[ext_resource type="Script" path="res://scripts/game/unlock_pad.gd" id="1_pad"]
+
+[sub_resource type="RectangleShape2D" id="rect_area"]
+size = Vector2(80, 80)
+
+[node name="UnlockPad" type="Area2D"]
+script = ExtResource("1_pad")
+
+[node name="Body" type="ColorRect" parent="."]
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 32.0
+offset_bottom = 32.0
+color = Color(0.95, 0.75, 0.15, 0.55)
+
+[node name="PriceLabel" type="Label" parent="."]
+offset_left = -40.0
+offset_top = -10.0
+offset_right = 40.0
+offset_bottom = 12.0
+theme_override_colors/font_color = Color(1, 0.95, 0.4, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+text = "$50"
+horizontal_alignment = 1
+
+[node name="PromptLabel" type="Label" parent="."]
+offset_left = -60.0
+offset_top = -36.0
+offset_right = 60.0
+offset_bottom = -18.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 11
+text = "E para desbloquear"
+horizontal_alignment = 1
+visible = false
+
+[node name="AreaShape" type="CollisionShape2D" parent="."]
+shape = SubResource("rect_area")
+
+[connection signal="body_entered" from="." to="." method="_on_body_entered"]
+[connection signal="body_exited" from="." to="." method="_on_body_exited"]
