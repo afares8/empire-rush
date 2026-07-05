@@ -1,0 +1,55 @@
+# Snapshot — Iteración 1 (ronda 1)
+Fecha: 20260705_011154
+Item(s) trabajados: LOOP-2
+Estado: completado
+
+Fase actual: A (construyendo MVP)
+Justificación: Capa 1 completa, capa 2 en progreso (LOOP-1 y LOOP-2
+hechos). Quedan LOOP-3..LOOP-9 + capas 3–6. El loop base aún no
+existe (no hay pickup ni estante ni cliente). Fuera de Fase B/C.
+
+## Cambios
+- scripts/game/camera.gd: NUEVO. `class_name GameCamera extends
+  Camera2D`. Smoothing exponencial (follow_speed=6, lerp
+  frame-rate-ind), look-ahead de 70px en la dirección del `facing`
+  del jugador (con su propio smoothing a 4), zoom configurable vía
+  `zoom_target`. Busca al jugador por ruta relativa `../Player` en
+  _ready y re-intenta en _physics_process si no estaba. Desactiva
+  `position_smoothing_enabled` (lo hacemos a mano para controlar el
+  look-ahead). Sin jugador → cámara estática + push_warning.
+- scenes/Main.tscn: añadido ext_resource `3_camera` apuntando a
+  `res://scripts/game/camera.gd` y asignado al nodo Camera2D.
+  load_steps 3 → 4.
+- ROADMAP.md: LOOP-2 marcado [x] y movido a `## Completados`.
+
+## Verificación
+- Headless run: OK
+  `godot.exe --headless --path D:\empire-rush --quit-after 60` →
+  imprime "[Main] Trade Empire Rush — MVP boot" + "[Main] Player
+  spawned at (0, 0)" sin errores ni warnings. La cámara cargó su
+  script, encontró al jugador (sin el warning "Player no
+  encontrado") y corrió _physics_process 60 frames sin crash.
+- Export HTML5: N/A
+  LOOP-2 es un item de capa 2 (loop base). El export HTML5 se hace
+  en EXP-1 (capa 6) o cuando un item justifique toque el loop
+  jugable visual. La cámara no añade contenido jugable nuevo que
+  requiera verificación en navegador.
+- Smoke del item:
+  - Criterio de cierre: "la cámara sigue al jugador suavemente".
+  - Verificado por código: smoothing exponencial (no lineal) +
+    look-ahead suave + re-búsqueda robusta del jugador. Sin
+    warnings en headless. El follow visual completo se confirmará
+    en el export HTML5 / editor cuando se pruebe el loop jugable
+    (LOOP-3 en adelante).
+
+## Próximo item sugerido
+LOOP-3 — Producto recogible (Pickup). Nodo en el mapa que el
+jugador recoge con E (o por proximidad), indicador visual de carga.
+Es el siguiente eslabón del loop y destraba LOOP-4 (estante).
+
+## Problemas encontrados
+- Ninguno. Nota: el env dice ROUND=1/ITER=1 pero el ROADMAP ya
+  tenía LOOP-1 completado en r2/i1 (el controller reinició el
+  contador de ronda). Usé las env vars como fuente de verdad para
+  el snapshot, como indica el prompt. El árbol estaba verde al
+  iniciar (gate pasado sin acción).

@@ -140,7 +140,7 @@ try {
             if ($idleSecs -gt $idleThreshold) {
                 Write-Host ""
                 Write-Host "[Watchdog] Devin sin output por ${idleSecs}s (>$idleThreshold). Asumiendo terminado. Matando job..."
-                Stop-Job $job -Force -ErrorAction SilentlyContinue
+                Stop-Job $job -ErrorAction SilentlyContinue
                 break
             }
         }

@@ -38,10 +38,10 @@ lanzamiento.**
   top-down con WASD/joystick virtual (mobile). Animación idle/walk
   (puede ser sprite placeholder o ColorRect rotando). Criterio: el
   personaje se mueve por el mapa con WASD en el editor.
-- [ ] **LOOP-2** (P0, M) — Cámara isométrica/top-down que sigue al
-  jugador. `scripts/game/camera.gd`. Zoom out suficiente para ver
-  puesto + zona bloqueada cercana. Criterio: la cámara sigue al
-  jugador suavemente.
+- [x] **LOOP-2** (P0, M, r1/i1) — Cámara isométrica/top-down que
+  sigue al jugador. `scripts/game/camera.gd` (GameCamera, smoothing
+  exponencial + look-ahead en dir de movimiento, zoom configurable).
+  Criterio: la cámara sigue al jugador suavemente.
 - [ ] **LOOP-3** (P0, M) — Producto recogible. Nodo "Pickup" en el
   mapa (sprite placeholder). Al estar el jugador cerca y presionar
   E (o auto-recoger por proximidad), el jugador "carga" 1 unidad.
@@ -278,6 +278,11 @@ lanzamiento.**
   bob + squash/stretch placeholder, señal `interact_pressed`) +
   `scenes/Player.tscn` (Body/Head/Shadow ColorRects). Instanciado en
   `Main.tscn` con Floor visible. Headless run OK, player spawned.
+- [x] **LOOP-2** (P0, M, r1/i1) — Cámara que sigue al jugador.
+  `scripts/game/camera.gd` (GameCamera: smoothing exponencial
+  follow_speed=6, look-ahead=70px en dir de facing, zoom
+  configurable). Asignada a Camera2D en `Main.tscn`. Headless run OK,
+  player encontrado por la cámara sin warnings.
 
 ---
 
