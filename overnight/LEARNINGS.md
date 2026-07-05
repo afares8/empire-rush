@@ -111,3 +111,132 @@
   La colección de dinero se valida por lógica de código, no por
   smoke test headless. Para testear body_entered, usar script
   SceneTree con `await physics_frame` (que sí corre physics).
+
+## Ronda 5 — Fine-tuning (2026-07-05 04:37)
+
+### Resumen de las 5 rondas
+- Items completados (y commiteados): 9 — GODOT-1/2/3, LOOP-1 a LOOP-6
+- Items "completados" pero PERDIDOS por reset destructivo: 3 —
+  LOOP-7, LOOP-8, LOOP-9 (r3, r4, r5 los hicieron pero el controller
+  tiró el trabajo)
+- Items no tocados: todos los de capas 3–6 (BIZ, AUTO, UPG, EVT,
+  RNK, MON, SAVE, OFF, JUICE, EXP, MET)
+- Export HTML5: FAIL — no existe `export_presets.cfg`, `exports/html5/`
+  solo tiene `.gitkeep`
+- Loop adictivo se siente: NO — falta HUD (cash invisible), falta pad
+  de desbloqueo (no hay meta cercana), falta primer minuto guiado,
+  falta juice, falta export jugable
+
+### Lecciones de proceso
+1. **CRÍTICO — `Reset-FailedIteration` destruye trabajo completado**:
+   `git reset --hard HEAD` + `git clean -fd` borra TODO el trabajo
+   de una sesión cuando el controller marca timeout, incluso si el
+   devin YA terminó la feature. r3, r4, r5 hicieron LOOP-7/8/9 cada
+   una (logs muestran resúmenes completos + "Iteration complete")
+   pero el marker no se escribió a tiempo → timeout → reset →
+   trabajo perdido. ~135 min de compute tirados. Fix: el controller
+   debe hacer un WIP commit ANTES de reset (preservar trabajo), o
+   mover `Reset-FailedIteration` a solo `git stash` + branch de
+   rescate, NUNCA `git clean -fd` sobre archivos nuevos.
+   Origen: logs r3/r4/r5 + `git log` (solo r1/r2 commiteados) +
+   `ls scripts/ui/` (no existe) + ROADMAP (LOOP-7/8/9 siguen [ ]).
+
+2. **El done-marker es frágil y no refleja "trabajo hecho"**:
+   session.ps1 escribe el marker solo si `Test-IterationProducedWork`
+   pasa (snapshot nuevo O ROADMAP cambiado). Pero el devin bufferiza
+   output y el pipeline `& devin | ForEach-Object` se queda colgado
+   esperando stdout incluso después de que devin terminó su tarea.
+   El watchdog (idle 120s) debería matarlo pero a veces no detecta
+   bien "terminó vs hung". Resultado: devin terminó, el marker no se
+   escribió, el controller esperó 45 min y reseteó. Fix: escribir el
+   marker desde DENTRO del prompt del devin (instrucción explícita:
+   "al terminar, escribe el archivo $DEVIN_DONE_MARKER") en vez de
+   depender del wrapper PowerShell que pelea con el buffer de devin.
+
+3. **3 rondas repitieron el mismo item (LOOP-7) sin avanzar**:
+   como cada reset volvía al commit r1, r3, r4 y r5 empezaron todas
+   desde "LOOP-7 pendiente" y lo rehicieron desde cero. El ROADMAP
+   no reflejaba el progreso real porque los cambios se perdían. Fix:
+   el controller debe commitear WIP cada iteración (Save-IterationWork)
+   ANTES de que el timeout dispare el reset, no después. Hoy
+   Save-IterationWork solo corre si `$ok=true`, que es justo el caso
+   que falla.
+
+4. **Anti-patrón "devin huérfano concurrente" reccurió en r3**:
+   un devin.exe de una sesión anterior seguía vivo ~2h editando los
+   mismos archivos. El watchdog de session.ps1 agregó cleanup pero
+   el problema se originó porque el controller anterior no mató bien
+   el árbol. Lección ya estaba pero se repitió → el cleanup debe ser
+   más agresivo al START de cada sesión (matar todos los devin.exe
+   huérfanos antes de lanzar el nuevo).
+
+5. **Snapshots no se commitearon en r3/r4/r5**:
+   `overnight/snapshots/` solo tiene 4 archivos, todos de antes de
+   01:35. Los snapshots que r3/r4/r5 dicen haber escrito fueron
+   borrados por `git clean -fd` (eran untracked). El noop_guard
+   entonces NO tenía forma de ver "trabajo nuevo" y posiblemente
+   marcó las sesiones como no-op → marker no escrito → timeout →
+   reset. Loop vicioso. Fix: commitear snapshots DENTRO del prompt
+   del devin (git add + commit explícito al final), no depender del
+   controller post-hoc.
+
+### Lecciones técnicas
+1. **`groups` override en .tscn no aplica a nodos instanciados**
+   (Godot 4.3): ShelfC con `groups=["zone_market"]` nunca entraba
+   al grupo. Fix: usar NodePath a contenedor Node2D + activar
+   `visible`/`process_mode`. Origen: r3 log. (Ya en LEARNINGS pero
+   confirmado por 2 rondas independientes.)
+
+2. **`theme_override_colors/font_color = X` como assignment target
+   falla al parsear**: usar `add_theme_color_override`. Origen: r4.
+
+3. **Headless `--quit-after` sigue sin correr `_physics_process`**:
+   confirmado por r3/r4/r5 — todos los smoke tests de LOOP-7 usan
+   `try_unlock()` público en vez de simular input E (que requiere
+   physics tick). Esta limitación es estable y hay que diseñar
+   alrededor de ella: exponer API pública en cada nodo del loop
+   para testear headless.
+
+4. **No hay `export_presets.cfg` después de 5 rondas**: EXP-1 (capa
+   6) nunca se tocó porque el overnight se quedó en capa 2. Sin
+   export HTML5, el MVP no es jugable en navegador y no se puede
+   hacer smoke visual. Fix: priorizar EXP-1 ANTES de seguir con
+   capa 3 — el export debe existir desde que el loop base funciona
+   para poder probar el "feel" en navegador.
+
+### Lecciones de diseño
+1. **El loop base NO se siente adictivo en el estado actual**:
+   recoger→vender→cobrar funciona en headless, pero sin HUD el cash
+   es invisible (violación §32 "dinero visible"), sin pad no hay
+   meta cercana (violación §25 segundo 20–35 "invierte para crecer"),
+   sin primer minuto guiado el jugador no sabe qué hacer (violación
+   §25). El loop está "conectado" en código pero no "se siente" en
+   juego. Veredicto: PARCIAL — la mecánica existe, el feel no.
+
+2. **Falta juice es la brecha más grande hacia "adictivo"**:
+   BLUEPRINT §32.1 exige "progreso visual inmediato" y §26 exige
+   "cada 10 segundos pasa algo". Hoy recoger dinero no tiene
+   partículas, sonido, ni fly-to-HUD (JUICE-1/POLISH-2 pendientes).
+   El MoneyDrop solo tiene un pop-in tween. Esto es lo que más
+   impacta la percepción de "satisfacción táctil" de la regla de
+   oro del AGENTS.md.
+
+3. **El MVP está a ~6–8 iter de ser "lanzado" en navegador**:
+   LOOP-7/8/9 (3 iter, ya hechos 3 veces pero perdidos) + EXP-1
+   (1–2 iter) + JUICE-1/POLISH-1/2 (2 iter) + balance/smoke visual
+   (1 iter). Con el fix del reset destructivo, la próxima ronda
+   podría cerrar el MVP jugable en 1 ciclo de 5 rondas.
+
+4. **El timeout de 45 min es demasiado corto para items M**: cada
+   ronda hizo solo 1 iteración y los items M (LOOP-7, LOOP-8) no
+   alcanzaban a commitear. Subir a 90 min o reducir scope a items S
+   por iteración. Origen: los 3 timeouts consecutivos r3/r4/r5.
+
+5. **El gate entre capas es débil**: el prompt dice "no toques capa
+   N+1 si capa N no está completa", pero el gate es solo "headless
+   run OK". Falta un gate de "export HTML5 OK" + "smoke en navegador
+   OK" antes de avanzar de capa. Sin esos gates, el overnight
+   acumula deuda técnica invisible (features que funcionan en
+   headless pero crashean en navegador). Origen: 5 rondas sin
+   export HTML5.
+

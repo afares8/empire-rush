@@ -1,0 +1,68 @@
+# Snapshot — Fine-tuning ronda 5
+Fecha: 20260705_043831
+
+## Lecciones extraídas
+
+### Proceso
+1. CRÍTICO: el controller hace timeout a 45 min y mata el proceso
+   devin ANTES del `git commit` — las rondas 3, 4, 5 perdieron
+   TODO su trabajo (LOOP-7/8/9 implementados 3 veces, 0 en git).
+2. El controller no limpia el working tree entre rondas — el
+   header "clean" del prompt era stale; rondas 3/4/5 encontraron
+   WIP sin committar de la ronda anterior.
+3. Solo 1 iteración por ronda (timeout 45 min muy corto para
+   items M).
+4. Anti-patrón "Devin huérfano concurrente" recurre a pesar del
+   watchdog (r3 log: PID 4288 ~2h activo).
+5. Snapshots faltantes: 4 de 5 esperados. Rondas 3/4/5 no
+   escribieron snapshot (timeout las mató antes).
+
+### Técnicas
+1. `groups` override en .tscn no aplica a nodos instanciados en
+   Godot 4.3 — usar NodePath a contenedor Node2D.
+2. `theme_override_colors/font_color` no asignable en .tscn —
+   usar `add_theme_color_override` en script.
+3. MSYS PID ≠ Windows PID — usar `Get-Process` para taskkill.
+4. Headless `--quit-after` no valida `_physics_process` ni
+   `body_entered` — solo boot + `_process`.
+
+### Diseño
+1. El loop base está conectado en código pero NO se siente
+   adictivo: sin HUD (LOOP-8), sin pad (LOOP-7), sin misión
+   guiada (LOOP-9), sin export HTML5.
+2. Sin export HTML5 no hay MVP jugable — todo smoke es headless
+   y no valida feel real.
+3. El gate "headless OK" es insuficiente — falta gate "export
+   HTML5 OK + smoke en navegador OK".
+
+## Cambios al ROADMAP
+- Agregado comentario de re-priorización al top explicando la
+  pérdida de rondas 3-5 y el nuevo gate de export.
+- Nueva sección `### Capa 1.5 — Gate de export HTML5` con EXP-1
+  movido a P0 al inicio (antes de capa 2).
+- EXP-1 removido de capa 6 (ahora es capa 1.5); capa 6 renombrada
+  "Landing + métricas".
+- Nueva sección `## FASE 2 — Versión 1.0 (post-MVP)` con gates
+  de calidad (GATE-1..3) y mobile readiness (MOB-1..3).
+
+## Veredicto del MVP
+- **NO** — el MVP no es adictivo ni jugable en navegador.
+- 9 items en git (capa 1 + 6 de 9 items de capa 2), pero
+  LOOP-7/8/9 se perdieron 3 veces por timeouts del controller.
+- No hay export HTML5, no hay HUD, no hay pad de desbloqueo.
+- El cimiento es sólido (código limpio, headless-safe) pero
+  falta el eslabón final del loop + feedback visual + vehículo
+  de entrega.
+- Necesita 3-5 rondas más CON el controller arreglado (commit
+  automático + timeout 90 min) para cerrar capa 2 + export + feel.
+
+## Próximo item sugerido (si se corre otra ronda)
+1. **FIX-CONTROLLER** (no es item de ROADMAP, es fix de proceso):
+   `session.ps1` debe commitear al final de cada iteración;
+   `run_overnight.ps1` debe commitear antes de timeout-kill +
+   `git reset --hard` al inicio de cada ronda + `taskkill //F
+   //IM devin.exe` al inicio. Subir timeout a 90 min.
+2. **EXP-1** — Export HTML5 (gate P0, nuevo en capa 1.5). Sin
+   esto no se puede validar nada en navegador.
+3. **LOOP-7** — Pad de desbloqueo (re-hacer, commitear).
+4. **LOOP-8** — HUD base (re-hacer, commitear).
