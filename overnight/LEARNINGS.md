@@ -273,3 +273,108 @@
   el smoke sigue siendo headless y no valida feel. EXP-1 debe ser el
   siguiente item P0 antes de capa 3.
 
+## Ronda 10 — Fine-tuning (2026-07-05 07:50)
+
+### Resumen de las rondas 6–10
+- Items completados Y commiteados: 0 nuevos (r8 ya estaba commiteado
+  desde antes; r6/r7/r9/r10 se perdieron por timeout+reset)
+- Items "completados" pero PERDIDOS por reset destructivo: 4 —
+  BIZ-1 (r9), BIZ-1/BIZ-2/BIZ-3 (r10). El anti-patrón
+  `Reset-FailedIteration` de LEARNINGS r5 lección 1 SIGUE ACTIVO:
+  3 de 5 rondas (r6, r9, r10) tuvieron su trabajo completado
+  destruido por el controller timeout+reset. La lección r5 NO fue
+  aplicada al controller.
+- Items no tocados: BIZ-4, BIZ-5, toda capa 4 (AUTO/UPG/EMP),
+  toda capa 5 (EVT/RNK/MON/SAVE/OFF/JUICE), toda capa 6 (EXP-2/MET)
+- Export HTML5: OK — `exports/html5/index.html` + index.pck (62KB)
+  + index.wasm (35MB) generados y commiteados en r8. Headless run
+  OK verificado en este fine-tuning (2026-07-05 07:50): Player,
+  2 Pickups, 2 Shelves, ClientSpawner, HUD, MissionGuide, 2 Pads
+  cargan sin crashes.
+- Loop adictivo se siente: PARCIAL — el cimiento está verde y
+  jugable en navegador, pero sin juice, sin contenido (solo 2
+  pickups/2 shelves, no 3 negocios), sin empleados, sin eventos,
+  sin balance. El primer minuto guiado (MissionGuide) existe en
+  código pero no validado en navegador.
+
+### Lecciones de proceso
+1. **CRÍTICO — El anti-patrón `Reset-FailedIteration` NO se fixeó
+   entre r5 y r10**: la lección r5 lección 1 decía explícitamente
+   que el controller debe commitear WIP ANTES del timeout-kill.
+   NO se aplicó. Resultado: r6, r9, r10 completaron su trabajo
+   (logs muestran "Iteration complete" + verificación OK) pero el
+   controller timeout a 45 min mató el proceso ANTES del commit
+   → `git reset --hard` + `git clean -fd` borró todo. ~135 min
+   de compute tirados otra vez (r9 ~45min + r10 ~45min + r6 ~45min).
+   Origen: logs r6/r9/r10 con `[CONTROLLER-TIMEOUT]` + `git log`
+   (último commit es r8) + `ls scripts/game/` (no business.gd).
+   Fix OBLIGATORIO: el controller (`session.ps1`/`run_overnight.ps1`)
+   debe hacer `git add -A && git commit -m "WIP ronda N iter M"`
+   cada 10 min de trabajo, no solo al final. Subir timeout a 90 min.
+
+2. **El timeout de 45 min es demasiado corto para items M/L**:
+   r9 (BIZ-1, M) y r10 (BIZ-1/2/3, 3×M) completaron el trabajo
+   en el log pero el controller las mató. r8 completó LOOP-7/8/9
+   + EXP-1 en ~10 min de trabajo real pero el proceso total
+   (incluyendo export de 35MB) superó 45 min. Fix: timeout 90 min
+   mínimo, o separar export (lento) de la implementación.
+
+3. **El "devin huérfano concurrente" recurre en r10**: 3 devin.exe
+   vivos simultáneamente sobrescribiendo business.gd/Main.tscn. La
+   lección r5 lección 4 NO se aplicó al START de la sesión. Fix:
+   `taskkill //F //IM devin.exe` al inicio de cada sesión, no solo
+   al final. Origen: r10 log "Problemas encontrados".
+
+4. **r10 sobreescribió archivos untracked sin leerlos primero**: el
+   intento previo de r10 dejó WIP untracked; la sesión re-launch
+   sobreescribió business.gd/Business.tscn/Main.tscn sin leerlos.
+   Recuperó vía reconstrucción desde snapshot. Lección: SIEMPRE
+   `git status` + leer untracked antes de write. Origen: r10 log.
+
+5. **El git_status del prompt es stale**: r7 log "git_status stale
+   — 6 modified + 7 untracked". El controller no hace `git reset`
+   al inicio de cada ronda, así que el WIP de la ronda anterior
+   se acumula. Fix: `git reset --hard HEAD && git clean -fd` al
+   START de cada ronda (después de commitear WIP de la anterior).
+
+### Lecciones técnicas
+1. **La abstracción `Business` (Node2D contenedor) escala bien**:
+   r10 demostró que BIZ-1/2/3 se modelan como Business con
+   `product_value`, `start_locked`, `unlock_zone_id` + pickups/
+   shelves hijos. Reutiliza pads existentes como gate. La próxima
+   ronda puede re-hacer BIZ-1/2/3 en 1 iteración siguiendo este
+   patrón. Origen: r10 log + snapshot.
+2. **`client_spawner.gd` debe filtrar shelves de negocios
+   bloqueados**: r10 añadió refresh + filter cada intento. Sin
+   esto, clientes van a shelves de negocios locked y se quedan
+   esperando. Origen: r10 log.
+3. **Export HTML5 es estable en r8**: `export_presets.cfg` +
+   templates en `%APPDATA%/Godot/export_templates/4.3.stable/`
+   funcionan. El .pck incluye scripts nuevos. El gate HTML5 está
+   verde y se mantiene verde si no se rompe project.godot.
+4. **Headless `--quit-after 60` sigue siendo el gate fiable**:
+   verifica boot + _ready + _process sin crashes. NO valida
+   _physics_process ni body_entered (lección r5 confirmada).
+
+### Lecciones de diseño
+1. **El loop base se siente "conectado" pero NO "adictivo"**:
+   el cimiento (recoger→estante→cliente→dinero→recoger→pad→
+   desbloquear) funciona en headless, pero sin juice (partículas,
+   sonido, fly-to-HUD), sin contenido (solo 2 pickups/2 shelves),
+   sin balance, el primer minuto NO engancha. Veredicto: PARCIAL.
+2. **Falta contenido es la brecha más grande hacia "adictivo"**:
+   con solo 1 negocio (ropa, $5) el loop es monótono. BIZ-1/2/3
+   (3 negocios) se hicieron 2 veces pero se perdieron. La próxima
+   ronda DEBE cerrar BIZ-1/2/3 + BIZ-4/5 antes de tocar juice.
+3. **El primer minuto guiado (MissionGuide) existe pero no validado**:
+   los 4 beats (FILL_SHELF→COLLECT_MONEY→UNLOCK_ZONE→HIRE_HELP)
+   están en código pero HIRE_HELP no tiene empleado real (capa 4
+   pendiente). El beat final queda colgado. Fix: o implementar
+   AUTO-1 (empleado cajero) antes, o cambiar el 4to beat a
+   "Desbloquea el segundo negocio".
+4. **El MVP está a ~8–10 iter de ser "lanzado" de verdad**: BIZ-1/2/3
+   (3 iter, ya hechos 2 veces pero perdidos) + BIZ-4/5 (2 iter) +
+   AUTO-1/2 (2 iter) + JUICE-1/POLISH-1/2 (2 iter) + balance/smoke
+   visual (1 iter). Con el fix del reset destructivo, la próxima
+   ronda podría cerrar el MVP jugable en 1–2 ciclos de 5 rondas.
+
