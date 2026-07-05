@@ -4,6 +4,10 @@ extends Node
 
 signal cash_changed(new_cash: float)
 signal empire_value_changed(new_value: float)
+# Se emite solo al recoger dinero físico (no al gastar). Para LOOP-9
+# (mission guide) y JUICE-1 (fly-to-HUD), que necesitan distinguir
+# "ingreso por recoger" de "gasto por desbloqueo".
+signal money_collected(amount: float)
 
 var cash: float = 0.0
 var gems: int = 0
@@ -14,6 +18,7 @@ func add_cash(amount: float) -> void:
 	cash += amount
 	if amount > 0.0:
 		empire_value += amount * 0.5
+		emit_signal("money_collected", amount)
 	emit_signal("cash_changed", cash)
 	emit_signal("empire_value_changed", empire_value)
 
