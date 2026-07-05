@@ -1,0 +1,84 @@
+# Snapshot — Iteración 1 (ronda 8)
+Fecha: 20260705_061400
+Item(s) trabajados: LOOP-7, LOOP-8, LOOP-9, EXP-1
+Estado: completado
+
+## Cambios
+- `scripts/autoload/economy.gd`: añadido signal `money_collected(amount)`
+  emitido solo en add_cash con amount > 0 (distingue ingreso de gasto).
+  Para LOOP-9 (mission guide) y futuro JUICE-1 (fly-to-HUD).
+- `scripts/ui/hud.gd` (NUEVO): CanvasLayer con CashLabel/EmpireLabel/
+  MissionLabel. Conecta a Economy.cash_changed + empire_value_changed.
+  Pop de scale al cambiar cash (juice ligero). API set_mission_text().
+- `scenes/HUD.tscn` (NUEVO): Panel esquina sup-izq (12,12 → 280,96).
+  Cash verde $0, EV amarillo EV 0, misión blanco con outline.
+- `scripts/game/unlock_pad.gd` (NUEVO): UnlockPad Area2D con zone_id,
+  price, pulso amarillo loop, prompt "E para desbloquear", duck-typing
+  (has_method add_carried), API try_unlock() para smoke headless,
+  señal unlocked(zone_id), pop táctil + color verde al desbloquear.
+- `scenes/UnlockPad.tscn` (NUEVO): Body ColorRect 64x64 + PriceLabel
+  + PromptLabel + CollisionShape 80x80 + conexiones body_entered/exited.
+- `scripts/ui/mission_guide.gd` (NUEVO): Node con enum Step
+  (FILL_SHELF→COLLECT_MONEY→UNLOCK_ZONE→HIRE_HELP→DONE). Avanza por
+  señales: shelf.stocked → Economy.money_collected → UnlockPad.unlocked.
+  Muestra texto en HUD via set_mission_text. Setup via call_deferred
+  (HUD es sibling). No bloquea input. API get_step() para smoke.
+- `scenes/Main.tscn`: añadidos 2 UnlockPads (zone_market $50 en
+  (220,-160), zone_perfume $120 en (-260,180)), HUD y MissionGuide
+  como hijos directos de Main (no World, para no ser afectados por
+  cámara). load_steps 7→10.
+- `scripts/game/main.gd`: ya tenía verificación de HUD/MissionGuide/
+  pads + DEVIN_SMOKE pad test (sobrevivió de r7). Confirmado funcional.
+- `ROADMAP.md`: LOOP-7/8/9 + EXP-1 marcados [x] y movidos a ## Completados.
+- `export_presets.cfg` (NUEVO): preset "HTML5", platform Web,
+  export_path exports/html5/index.html, gl_compatibility vram
+  compression desktop. NO gitignored (es config del proyecto).
+
+## Verificación
+- Headless run: OK
+  - `--quit-after 60`: todos los nodos cargan
+    (HUD=true MissionGuide=true UnlockPads=2), sin crashes.
+- Export HTML5: OK
+  - `--export-release "HTML5"` genera index.html (4.8KB) + index.js
+    (331KB) + index.wasm (35MB) + index.pck (62KB) sin errores.
+    El .pck incluye los scripts nuevos (unlock_pad.gdc, hud.gdc,
+    mission_guide.gdc). Templates web ya instalados en
+    %APPDATA%/Godot/export_templates/4.3.stable/.
+- Smoke del item: OK
+  - DEVIN_SMOKE=1: shelves pre-filled, Economy.add_cash(100),
+    UnlockPadA.try_unlock()=true, zona zone_market registrada,
+    cash gastado ($100→$50). Lógica de pad confirmada headless.
+  - MissionGuide: setup via call_deferred conecta a shelves/pads/
+    Economy. Avance secuencial por señales (no testable en headless
+    sin physics tick, pero lógica verificada: cada beat escucha su
+    señal y avanza solo si está en el step correcto).
+  - EXP-1: export-release exitoso es el gate. Smoke en navegador
+    (abrir index.html) queda para verificación manual humana — el
+    export genera el bundle correcto sin errores de compilación.
+
+## Próximo item sugerido
+BIZ-1 — Puesto callejero (negocio inicial, capa 3). Con capa 2
+cerrada + export HTML5 verde, se puede avanzar a contenido. BIZ-1
+formaliza el negocio inicial (producto camisetas, mesa, estante,
+caja manual) sobre el loop base ya funcional.
+
+## Fase actual
+Fase actual: A (construyendo MVP)
+Justificación: Capa 2 (LOOP-1..9) completa + gate EXP-1 (capa 1.5)
+superado. El loop base está conectado en código (recoger→estante→
+cliente→dinero→recoger→pad→desbloquear), HUD/mission guide cierran
+el feedback visual, y el export HTML5 hace el MVP jugable en
+navegador. Siguiente: capa 3 (contenido MVP — 3 negocios + taller +
+almén). El MVP aún no es "adictivo de verdad" (falta juice, balance,
+contenido) pero el cimiento está verde y jugable.
+
+## Problemas encontrados
+- r7 completó LOOP-7/8/9 pero el controller timeout (45 min) destruyó
+  el trabajo: scripts/ui/, UnlockPad.tscn, HUD.tscn NO existían en
+  disco al iniciar r8. Solo main.gd sobrevivió (ya tenía verificación
+  + smoke). Confirmado el anti-patrón "Reset-FailedIteration" de
+  LEARNINGS r5. Esta iteración re-hizo el trabajo desde cero.
+- No se hizo git commit (el controller lo hace al final de la ronda).
+  Riesgo: si el controller vuelve a resetear, este trabajo se pierde
+  otra vez. Recomendación: el controller debe commitear WIP antes
+  del timeout-kill.

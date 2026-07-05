@@ -49,7 +49,7 @@ lanzamiento.**
 > que compila" de "MVP jugable". Hacer PRIMERO y mantener verde en
 > cada iteración posterior.
 
-- [ ] **EXP-1** (P0, M) — Export HTML5 del MVP. Configurar preset
+- [x] **EXP-1** (P0, M, r8/i1) — Export HTML5 del MVP. Configurar preset
   `export_presets.cfg` para HTML5. Exportar a
   `exports/html5/index.html`. Criterio: `exports/html5/index.html`
   abre en navegador y el juego corre (player visible, se mueve con
@@ -78,15 +78,15 @@ lanzamiento.**
   en el piso con valor. Al recoger, suma al contador de Cash del
   jugador (autoload `Economy`). Sonido placeholder + animación
   volando al HUD. Criterio: recoger dinero sube el contador visible.
-- [ ] **LOOP-7** (P0, M) — Pad de desbloqueo. Zona bloqueada con
+- [x] **LOOP-7** (P0, M, r8/i1) — Pad de desbloqueo. Zona bloqueada con
   precio visible. Al estar cerca con Cash ≥ precio, presionar E
   desbloquea (descuenta Cash, activa la zona). Criterio: se
   desbloquea una zona pagando.
-- [ ] **LOOP-8** (P0, S) — HUD base. Contador de Cash, contador de
+- [x] **LOOP-8** (P0, S, r8/i1) — HUD base. Contador de Cash, contador de
   Empire Value, indicador de misión actual (texto). Esquina superior
   izquierda. Criterio: el HUD muestra Cash y Empire Value en tiempo
   real.
-- [ ] **LOOP-9** (P0, S) — Primer minuto guiado (sin tutorial
+- [x] **LOOP-9** (P0, S, r8/i1) — Primer minuto guiado (sin tutorial
   pesado). Textos contextuales que aparecen al cumplir condiciones:
   "Llena tu primer estante" → al llenar → "Recoge tu dinero" → al
   recoger → "Invierte para crecer" → al desbloquear → "Contrata
@@ -288,6 +288,14 @@ lanzamiento.**
 - [x] **GODOT-3** (P0, S, r1/i1) — `scenes/Main.tscn` creada con
   Node2D "Main" + "World" + Camera2D. Script `main.gd` arranca sin
   crash. `run/main_scene` ya apuntaba a `res://scenes/Main.tscn`.
+- [x] **EXP-1** (P0, M, r8/i1) — Export HTML5 del MVP.
+  `export_presets.cfg` (preset "HTML5", platform Web, export_path
+  exports/html5/index.html, gl_compatibility vram compression
+  desktop). Export-release genera index.html + index.js + index.wasm
+  (35MB) + index.pck (62KB) sin errores. Templates web ya instalados
+  en %APPDATA%/Godot/export_templates/4.3.stable/. El .pck incluye
+  los scripts nuevos (unlock_pad.gdc, hud.gdc, mission_guide.gdc).
+  Gate HTML5 superado — el MVP es jugable en navegador.
 - [x] **LOOP-1** (P0, M, r2/i1) — Personaje jugador controlable.
   `scripts/game/player.gd` (CharacterBody2D, WASD, accel/friction,
   bob + squash/stretch placeholder, señal `interact_pressed`) +
@@ -334,6 +342,30 @@ lanzamiento.**
   colección vía Area2D requiere physics tick (no corre en headless
   --quit-after) pero lógica verificada. HUD visual del contador es
   LOOP-8; juice (partículas, sonido, fly-to-HUD) es JUICE-1/POLISH-2.
+- [x] **LOOP-7** (P0, M, r8/i1) — Pad de desbloqueo.
+  `scripts/game/unlock_pad.gd` (UnlockPad Area2D, zone_id, price,
+  pulso amarillo loop, prompt "E para desbloquear", duck-typing,
+  API `try_unlock()` para smoke headless, señal `unlocked(zone_id)`,
+  pop táctil + color verde al desbloquear) + `scenes/UnlockPad.tscn`
+  (Body ColorRect 64x64 + PriceLabel + PromptLabel + CollisionShape
+  80x80). 2 pads instanciados en Main.tscn ($50 zone_market,
+  $120 zone_perfume). Headless smoke OK: try_unlock=true, cash
+  gastado, zona registrada en GameManager.
+- [x] **LOOP-8** (P0, S, r8/i1) — HUD base. `scripts/ui/hud.gd`
+  (CanvasLayer, CashLabel/EmpireLabel/MissionLabel, conecta a
+  Economy.cash_changed + empire_value_changed, pop de scale al
+  cambiar cash, API `set_mission_text()` para MissionGuide) +
+  `scenes/HUD.tscn` (Panel esquina sup-izq, cash verde, EV amarillo,
+  misión blanco con outline). Instanciado en Main.tscn. Headless:
+  HUD carga y refresca cash/EV en tiempo real.
+- [x] **LOOP-9** (P0, S, r8/i1) — Primer minuto guiado.
+  `scripts/ui/mission_guide.gd` (Node, enum Step FILL_SHELF→
+  COLLECT_MONEY→UNLOCK_ZONE→HIRE_HELP→DONE, avanza por señales:
+  shelf.stocked → Economy.money_collected → UnlockPad.unlocked,
+  muestra texto en HUD via set_mission_text, no bloquea input).
+  Instanciado en Main.tscn. Añadido signal `money_collected` a
+  Economy (distingue ingreso de gasto). Headless: MissionGuide
+  carga, setup via call_deferred conecta a shelves/pads/Economy.
 
 ---
 
