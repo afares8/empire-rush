@@ -42,7 +42,7 @@ lanzamiento.**
   sigue al jugador. `scripts/game/camera.gd` (GameCamera, smoothing
   exponencial + look-ahead en dir de movimiento, zoom configurable).
   Criterio: la cámara sigue al jugador suavemente.
-- [ ] **LOOP-4** (P0, M) — Estante/mostrador reponible. Al estar
+- [x] **LOOP-4** (P0, M, r1/i1) — Estante/mostrador reponible. Al estar
   cerca con producto cargado, presionar E llena el estante (+1
   stock, hasta capacity). Visual: el estante muestra fill level.
   Criterio: el estante se llena al interactuar.
@@ -288,6 +288,14 @@ lanzamiento.**
   BodyShape (RectangleShape2D 28x36) al Player para que Area2D lo
   detecte. 2 pickups instanciados en Main.tscn. Smoke test OK:
   recoger respeta capacidad, no recoge fuera de área.
+- [x] **LOOP-4** (P0, M, r1/i1) — Estante/mostrador reponible.
+  `scripts/game/shelf.gd` (Shelf Area2D, stock/capacity, fill con E
+  consume carried del jugador, duck-typing, API `take_item()` +
+  `has_stock()`/`is_empty()` + señal `stock_changed` para LOOP-5) +
+  `scenes/Shelf.tscn` (Body ColorRect 64x48 + StockLabel + área
+  80x80). 2 shelves instanciados en Main.tscn. Smoke test OK:
+  llena respeta capacity, no llena sin carried ni fuera de área,
+  take_item consume stock correctamente.
 
 ---
 

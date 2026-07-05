@@ -16,6 +16,10 @@ func _ready() -> void:
 	var pk_a: Node = get_node_or_null("World/PickupA")
 	var pk_b: Node = get_node_or_null("World/PickupB")
 	print("[Main] Pickups: PickupA=%s PickupB=%s" % [pk_a != null, pk_b != null])
+	# Verificar estantes cargados (loop base, LOOP-4).
+	var sh_a: Node = get_node_or_null("World/ShelfA")
+	var sh_b: Node = get_node_or_null("World/ShelfB")
+	print("[Main] Shelves: ShelfA=%s ShelfB=%s" % [sh_a != null, sh_b != null])
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:

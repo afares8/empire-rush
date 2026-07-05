@@ -86,104 +86,109 @@ try {
         }
         if (-not (Test-Path $LogFile)) { New-Item -ItemType File -Path $LogFile -Force | Out-Null }
 
-        # ---- Watchdog via Start-Job + pipeline + monitor de idle ----
-        # Root cause del bug: devin.exe en modo -p a veces NO sale despues de
-        # imprimir su resumen. El pipeline `& devin | ForEach-Object` se queda
-        # bloqueado esperando que devin cierre stdout => el finally de
-        # session.ps1 nunca se ejecuta => el marker nunca se crea => el
-        # controller espera 90 min de timeout para matar el arbol.
+        # ---- Watchdog anti-hang: pipeline foreground + monitor de proceso ----
         #
-        # Fix: lanzar devin en un Start-Job (background PowerShell) que usa
-        # el pipeline (captura output correctamente, a diferencia de
-        # Start-Process -RedirectStandardOutput que no captura console APIs).
-        # El foreground monitorea el tamano del log file. Si devin no produce
-        # output nuevo por 60s (idle), Stop-Job mata el job + devin. Asi el
-        # foreground nunca se bloquea y el marker se crea inmediatamente.
-        $job = Start-Job -ScriptBlock {
-            param($pf, $lf, $wd, $round, $iter)
-            Set-Location $wd
-            $env:DEVIN_OVERNIGHT_ROUND = "$round"
-            $env:DEVIN_OVERNIGHT_ITER  = "$iter"
-            & devin --model glm-5.2 --permission-mode dangerous -p --prompt-file "$pf" 2>&1 | ForEach-Object {
-                $_ | Out-File -FilePath "$lf" -Encoding UTF8 -Append
-            }
-            $LASTEXITCODE
-        } -ArgumentList $PromptFile, $LogFile, $WorkDir, $Round, $Iteration
+        # Root cause: devin.exe en modo -p bufferiza TODO el output hasta
+        # terminar. El pipeline `& devin | ForEach-Object` captura el output
+        # correctamente PERO se queda bloqueado esperando que devin cierre
+        # stdout. A veces devin termina su trabajo pero NO sale (hang) — el
+        # pipeline nunca retorna y el marker nunca se crea.
+        #
+        # Fix: lanzar devin con el pipeline en el FOREGROUND (captura output
+        # en tiempo real, escribe al log file linea a linea). En paralelo,
+        # un watchdog en BACKGROUND monitorea el PROCESO devin (no el log):
+        #   - Si devin tiene procesos hijos (bash, godot, git) → está trabajando
+        #   - Si devin NO tiene hijos Y su CPU no cambia → terminó pero hung
+        #   - Si hung por >120s → matar devin → el pipeline desbloquea
+        #
+        # Esto es distinto a monitorear el log file (que no crece en tiempo
+        # real porque devin bufferiza). Monitoreamos el PROCESO: CPU + hijos.
 
-        Write-Host "Devin lanzado en background job (Id $($job.Id)). Watchdog activo..."
+        # El watchdog corre en un Start-Job para no bloquear el foreground
+        $watchdogPid = $PID  # session.ps1 PID, para encontrar devin como hijo
+        $idleThreshold = 120  # 120s sin CPU ni hijos → asumir hung
 
-        $lastLogSize = 0
-        $lastActivity = Get-Date
-        $idleThreshold = 120  # 120s sin output nuevo → asumir hung (devin a veces tarda en arrancar)
-
-        while ($job.State -eq 'Running') {
-            Start-Sleep -Seconds 3
-            # Stream contenido nuevo del log a la consola
-            if (Test-Path $LogFile) {
+        $watchdogScript = {
+            param($parentPid, $threshold)
+            $lastCpu = -1.0
+            $idleStart = $null
+            while ($true) {
+                Start-Sleep -Seconds 5
                 try {
-                    $currentSize = (Get-Item $LogFile).Length
-                    if ($currentSize -gt $lastLogSize) {
-                        $lastActivity = Get-Date
-                        $allLines = Get-Content $LogFile -ErrorAction SilentlyContinue
-                        if ($allLines) {
-                            $linesSoFar = [int]($lastLogSize / 200)
-                            if ($linesSoFar -lt $allLines.Count) {
-                                $allLines[$linesSoFar..($allLines.Count - 1)] | ForEach-Object { Write-Host $_ }
+                    # Buscar devin.exe hijo de parentPid
+                    $devinProcs = Get-CimInstance Win32_Process -Filter "Name='devin.exe'" -ErrorAction SilentlyContinue |
+                        Where-Object { $_.ParentProcessId -eq $parentPid -or $_.CommandLine -match 'prompt-file' }
+                    if (-not $devinProcs -or $devinProcs.Count -eq 0) {
+                        # devin no existe → ya terminó o no arrancó aún
+                        return
+                    }
+                    foreach ($dp in $devinProcs) {
+                        $proc = Get-Process -Id $dp.ProcessId -ErrorAction SilentlyContinue
+                        if (-not $proc) { continue }
+                        $cpu = $proc.CPU
+                        # Contar procesos hijos directos de devin
+                        $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$($dp.ProcessId)" -ErrorAction SilentlyContinue)
+                        $childCount = if ($children) { $children.Count } else { 0 }
+
+                        if ($childCount -gt 0 -or $cpu -ne $lastCpu) {
+                            # Hay actividad → reset idle timer
+                            $idleStart = $null
+                        } else {
+                            # Sin hijos y CPU sin cambio → posible hung
+                            if (-not $idleStart) { $idleStart = Get-Date }
+                            $idleSecs = [int]((Get-Date) - $idleStart).TotalSeconds
+                            if ($idleSecs -gt $threshold) {
+                                # Matar devin y todo su arbol
+                                $toKill = @($dp.ProcessId)
+                                $queue = New-Object System.Collections.Generic.Queue[int]
+                                $queue.Enqueue($dp.ProcessId)
+                                while ($queue.Count -gt 0) {
+                                    $cur = $queue.Dequeue()
+                                    $kids = Get-CimInstance Win32_Process -Filter "ParentProcessId=$cur" -ErrorAction SilentlyContinue
+                                    foreach ($k in $kids) { $toKill += $k.ProcessId; $queue.Enqueue($k.ProcessId) }
+                                }
+                                foreach ($p in $toKill) {
+                                    try { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue } catch {}
+                                }
+                                return
                             }
                         }
-                        $lastLogSize = $currentSize
+                        $lastCpu = $cpu
                     }
                 } catch { }
             }
-            # Watchdog: matar si idle demasiado tiempo
-            $idleSecs = [int]((Get-Date) - $lastActivity).TotalSeconds
-            if ($idleSecs -gt $idleThreshold) {
-                Write-Host ""
-                Write-Host "[Watchdog] Devin sin output por ${idleSecs}s (>$idleThreshold). Asumiendo terminado. Matando job..."
-                Stop-Job $job -ErrorAction SilentlyContinue
-                break
-            }
         }
 
-        # Stream final: cualquier output que quedo en el log
-        if (Test-Path $LogFile) {
-            try {
-                $finalSize = (Get-Item $LogFile).Length
-                if ($finalSize -gt $lastLogSize) {
-                    $allLines = Get-Content $LogFile -ErrorAction SilentlyContinue
-                    if ($allLines) {
-                        $linesSoFar = [int]($lastLogSize / 200)
-                        if ($linesSoFar -lt $allLines.Count) {
-                            $allLines[$linesSoFar..($allLines.Count - 1)] | ForEach-Object { Write-Host $_ }
-                        }
-                    }
-                }
-            } catch { }
-        }
+        # Lanzar watchdog en background job
+        $wdJob = Start-Job -ScriptBlock $watchdogScript -ArgumentList $watchdogPid, $idleThreshold
+        Write-Host "Watchdog activo (job Id $($wdJob.Id), idle threshold ${idleThreshold}s)..."
 
-        # Obtener exit code del job
-        $ec = 0
+        # Lanzar devin en FOREGROUND con pipeline (captura output en tiempo real)
+        # El pipeline se bloquea hasta que devin cierre stdout. Si devin hang,
+        # el watchdog lo mata y el pipeline desbloquea.
         try {
-            $results = Receive-Job $job -ErrorAction SilentlyContinue
-            if ($results -and $results.Count -gt 0) {
-                $ec = [int]$results[-1]
+            & devin --model glm-5.2 --permission-mode dangerous -p --prompt-file "$PromptFile" 2>&1 | ForEach-Object {
+                Write-Host $_
+                $_ | Out-File -FilePath "$LogFile" -Encoding UTF8 -Append
             }
-        } catch { }
-        Remove-Job $job -Force -ErrorAction SilentlyContinue
+            $ec = $LASTEXITCODE
+        } finally {
+            # Detener watchdog
+            Stop-Job $wdJob -ErrorAction SilentlyContinue
+            Remove-Job $wdJob -Force -ErrorAction SilentlyContinue
+        }
 
-        # ---- Cleanup: matar procesos devin huerfanos del job ----
-        # Stop-Job/Remove-Job matan el PowerShell del job pero NO siempre
-        # matan a devin.exe (child process). Si devin se colgó (root cause
-        # original), sigue vivo consumiendo RAM y bloqueando sesiones
-        # futuras. Buscamos y matamos cualquier devin.exe con --prompt-file
-        # que sea hijo de un job PowerShell ya muerto.
+        # Si devin fue matado por el watchdog, $LASTEXITCODE puede ser null/negativo
+        if ($null -eq $ec -or $ec -lt 0) { $ec = 0 }
+
+        # ---- Cleanup: matar procesos devin huerfanos ----
         try {
             Get-CimInstance Win32_Process -Filter "Name='devin.exe'" -ErrorAction SilentlyContinue |
                 Where-Object { $_.CommandLine -match 'prompt-file' } |
                 ForEach-Object {
                     $parent = Get-Process -Id $_.ParentProcessId -ErrorAction SilentlyContinue
                     if (-not $parent) {
-                        Write-Host "[Cleanup] Matando devin huerfano PID $($_.ProcessId) (parent ya muerto)"
+                        Write-Host "[Cleanup] Matando devin huerfano PID $($_.ProcessId)"
                         Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
                     }
                 }

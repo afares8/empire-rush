@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3 uid="uid://main_scene_ter"]
+[gd_scene load_steps=6 format=3 uid="uid://main_scene_ter"]
 
 [ext_resource type="Script" path="res://scripts/game/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2_player"]
 [ext_resource type="Script" path="res://scripts/game/camera.gd" id="3_camera"]
 [ext_resource type="PackedScene" path="res://scenes/Pickup.tscn" id="4_pickup"]
+[ext_resource type="PackedScene" path="res://scenes/Shelf.tscn" id="5_shelf"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -25,6 +26,12 @@ position = Vector2(-180, -120)
 
 [node name="PickupB" parent="World" instance=ExtResource("4_pickup")]
 position = Vector2(160, 100)
+
+[node name="ShelfA" parent="World" instance=ExtResource("5_shelf")]
+position = Vector2(-60, -40)
+
+[node name="ShelfB" parent="World" instance=ExtResource("5_shelf")]
+position = Vector2(80, 60)
 
 [node name="Camera2D" type="Camera2D" parent="World"]
 position = Vector2(0, 0)
