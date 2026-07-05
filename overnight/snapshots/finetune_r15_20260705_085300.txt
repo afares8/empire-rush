@@ -1,0 +1,67 @@
+# Snapshot — Fine-tuning ronda 15
+Fecha: 2026-07-05 08:53
+
+## Lecciones extraídas
+- VICTORIA de proceso: el anti-patrón `Reset-FailedIteration` está
+  fixeado — las 5 rondas (r11-r15) commitearon su trabajo sin
+  pérdidas. El controller actual hace WIP commit + branch por ronda.
+- "devin huérfano concurrente" SIGUE recuriendo (5 rondas seguidas):
+  r11/r12/r13/r14/r15 todas reportaron sesión concurrente escribiendo
+  los mismos archivos. Fix OBLIGATORIO (6ta vez): `taskkill //F //IM
+  devin.exe` al START de cada sesión excepto el controller.
+- Reconciliación selectiva es la estrategia ganadora: adoptar el WIP
+  concurrente limpio + borrar duplicados = ~5 min vs ~20 min reescribir.
+- El patrón Business+Pad+Cashier+Stocker+UpgradePad es reutilizable
+  y escalable: 5 negocios + 3 cajeros + 3 reponedores + 5 upgrades
+  sin duplicación. EMP-1 puede extender Cashier/Stocker con `rarity`.
+- `Time.get_ticks_msec()` es el único timer fiable en headless
+  --quit-after (confirmado por 3ra vez en r15).
+- NO hay audio ni partículas después de 15 rondas: JUICE-1/POLISH-1..9/
+  JUICE-2 siguen 100% pendientes. Es la brecha #1 hacia "adictivo".
+- El loop base está COMPLETO pero NO es adictivo: sin juice, sin
+  eventos, sin ranking, sin save, sin balance validado. Veredicto
+  PARCIAL — cimiento completo, feel pendiente.
+- El primer minuto (§25) NO cumple los 4 beats validados en
+  navegador: el MissionGuide existe en código pero nunca se probó
+  con timing real. GATE-3 pendiente.
+- El orden de capas 1→6 se respetó correctamente: capa 1 (r1) →
+  capa 2 (r1-r8) → EXP-1 (r8) → capa 3 (r11-r12) → capa 4 (r13-r15).
+  NO se saltó a Fase B/C. MANTENER este orden.
+- El MVP está a ~5-7 iter de ser "lanzado" con feel adictivo:
+  JUICE-1+POLISH-1/2/3 (2 iter) + EVT-1/2 (1 iter) + RNK-1 (1 iter)
+  + SAVE-1 (1 iter) + POLISH-6/GATE-3 balance (1 iter) + smoke
+  visual en navegador (1 iter).
+
+## Cambios al ROADMAP
+- Re-priorización ronda 15 agregada al top del ROADMAP:
+  1. EMP-1 (cerrar capa 4, M).
+  2. JUICE-1 + POLISH-1/2/3 (juice del loop base, 2 iter) — SUBEN
+     a P0 dentro de capa 5 (sin juice el loop no engancha §32.1/§32.3).
+  3. EVT-1 + EVT-2 (eventos Rush Hour/VIP, S c/u).
+  4. SAVE-1 (guardado local).
+  5. RNK-1 (ranking local con bots).
+  6. POLISH-6 + GATE-3 (balance validado en navegador).
+  7. EXP-2 + MET-1 (landing + telemetría).
+  8. POLISH-4/5/7/8/9/10 (pulido visual/audio restante).
+  9. V1-* (Fase C) — NO tocar hasta Fase A + B completas.
+- Orden de capas 4→5→6→B→C se mantiene. No saltar a Fase C.
+- Fix OBLIGATORIO del controller documentado (6ta vez): taskkill
+  devin.exe al START de cada sesión.
+
+## Veredicto del MVP
+- **PARCIAL** — el cimiento técnico está completo y jugable en
+  navegador (5 negocios, 3 cajeros, 3 reponedores, 5 upgrades,
+  fábrica, almacén, export HTML5 OK 108KB .pck). La mecánica "mi
+  imperio trabaja por mí" funciona. PERO el loop NO es adictivo
+  todavía: 0 partículas, 0 sonido, 0 cash-fly-to-HUD, 0 screen
+  shake, 0 eventos, 0 ranking, 0 save, balance no validado en
+  navegador. El primer minuto (§25) es hipótesis no verificada.
+  Faltan 5-7 rondas de pulido (juice + eventos + ranking + save +
+  balance) antes de "éxito desde el primer lanzamiento".
+
+## Próximo item sugerido (si se corre otra ronda)
+EMP-1 — Sistema de rareza de empleados (capa 4, M). Cierra capa 4.
+Alternativa: saltar directamente a JUICE-1 + POLISH-1/2/3 (juice
+del loop base) si se prefiere impactar el "feel" antes de cerrar
+capa 4. Recomendación: EMP-1 primero (cierra capa 4) → JUICE-1 +
+POLISH-1/2/3 en la ronda siguiente (impacto adicción más alto).

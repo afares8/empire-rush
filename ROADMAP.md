@@ -1,5 +1,48 @@
 # Trade Empire Rush — ROADMAP
 
+> **Re-priorizado por fine-tuning ronda 15 (2026-07-05 08:53)**:
+> VICTORIA de proceso: las 5 rondas (r11-r15) commitearon su trabajo
+> sin pérdidas — el anti-patrón `Reset-FailedIteration` está fixeado.
+> Capa 3 CERRADA (BIZ-1..5), capa 4 casi cerrada (AUTO-1/2 + UPG-1..5
+> hechos, solo EMP-1 pendiente). Export HTML5 OK (108KB .pck). El
+> cimiento del loop está COMPLETO (recoger→estante→cliente→dinero→
+> pad→desbloquear→cajero→reponedor→warehouse→fábrica→upgrades).
+>
+> PERO el loop NO es adictivo todavía: sin juice (partículas/sonido/
+> cash-fly-to-HUD/screen shake = 0), sin eventos, sin ranking, sin
+> save, sin balance validado en navegador. El primer minuto (§25)
+> es hipótesis no verificada.
+>
+> Re-priorización:
+> 1. **EMP-1** (cerrar capa 4, M) — último item capa 4.
+> 2. **JUICE-1 + POLISH-1/2/3** (juice del loop base, 2 iter) —
+>    SUBEN a P0 dentro de capa 5 porque sin juice el loop no engancha
+>    (§32.1/§32.3). Hacer EN PARALELO con EMP-1 si hay rondas de sobra.
+> 3. **EVT-1 + EVT-2** (eventos Rush Hour/VIP, S c/u) — variación
+>    para evitar repetición (§33.1).
+> 4. **SAVE-1** (guardado local) — retención básica.
+> 5. **RNK-1** (ranking local con bots) — meta aspiracional (§32.6).
+> 6. **POLISH-6 + GATE-3** (balance validado en navegador) — gate
+>    pre-lanzamiento, valida §25 los 4 beats.
+> 7. **EXP-2 + MET-1** (landing + telemetría) — capa 6 cierre.
+> 8. **POLISH-4/5/7/8/9/10** (pulido visual/audio restante) — Fase B.
+> 9. **V1-*** (Fase C) — NO tocar hasta Fase A + B completas.
+>
+> Orden de capas 4→5→6→B→C se mantiene. No saltar a Fase C.
+>
+> **Fix OBLIGATORIO del controller (6ta vez)**: `taskkill //F //IM
+> devin.exe` al START de cada sesión excepto el controller. El
+> "devin huérfano concurrente" recurre en r11/r12/r13/r14/r15 y
+> causa race conditions + parse errors + tiempo perdido.
+>
+> **Fix OBLIGATORIO del controller (capacidad)**: el overnight
+> operó a 1/5 de capacidad teórica en r11-r15 (1 iteración por
+> ronda, ~5-10 min de trabajo real cada una). El controller debe
+> lanzar múltiples iteraciones por ronda mientras el devin siga
+> produciendo trabajo (loop interno con done-marker por iteración).
+> Con esto + el fix de concurrencia, las 6-8 iter restantes al
+> lanzamiento se cierran en 2-3 rondas en vez de 6-8.
+
 > **Re-priorizado por fine-tuning ronda 10 (2026-07-05 07:50)**:
 > CRÍTICO — el anti-patrón `Reset-FailedIteration` (lección r5) NO
 > se fixeó y SIGUE destruyendo trabajo. r9 (BIZ-1) y r10 (BIZ-1/2/3)
@@ -112,12 +155,9 @@ lanzamiento.**
 
 ### Capa 4 — Automatización + upgrades + empleados
 
-> UPG-1..5 cerrados en r14/i1 (ver `## Completados`). Siguiente:
-> AUTO-2 (reponedor) o EMP-1 (rareza de empleados).
+> UPG-1..5 cerrados en r14/i1, AUTO-1 en r13/i1, AUTO-2 en r15/i1
+> (ver `## Completados`). Siguiente: EMP-1 (rareza de empleados).
 
-- [ ] **AUTO-2** (P1, M) — Empleado reponedor. Mueve producto del
-  almacén a los estantes automáticamente. Criterio: los estantes se
-  reponen solos.
 - [ ] **EMP-1** (P2, M) — Sistema de rareza de empleados
   (común/raro/épico/legendario) con habilidades especiales. Al
   menos 3 empleados con habilidades distintas. Criterio: los
@@ -445,6 +485,28 @@ lanzamiento.**
   Patrón base-meta: captura base_production_time al primer nivel y
   recompute. Headless: production lv2 → factory production_time
   3.0→2.4 (×0.8). Export HTML5 OK (upgrade_pad.gd.remap en .pck 98KB).
+- [x] **AUTO-2** (P1, M, r15/i1) — Empleado reponedor. `scripts/game/
+  stocker.gd` (Stocker Area2D: target_business_id + hire_price +
+  trip_interval + carry_per_trip; pad de contratación con pulso
+  verde, try_hire() gasta cash y marca _hired; _process con timer
+  wall-clock Time.get_ticks_msec cada trip_interval segundos retira
+  carry_per_trip unidades del Warehouse y las deposita en el estante
+  del negocio objetivo con más espacio; gate por negocio bloqueado:
+  si el negocio objetivo está locked, el reponedor se oculta hasta
+  business_unlocked; NO reusa GameManager.unlock_zone para no
+  interferir con MissionGuide, igual que Cashier; _resolve_references
+  call_deferred + fallback sincrónico en try_hire) +
+  `scenes/Stocker.tscn` (Body + PriceLabel + PromptLabel + AreaShape
+  80x80). shelf.gd añade API pública add_stock(amount) para reposición
+  sin pasar por el jugador (respeta capacity y locked). 3 instancias
+  en Main.tscn: StockerBIZ1 (-60,140) biz_market $120 trip=2s carry=2,
+  StockerBIZ2 (300,-60) biz_perfume $240 trip=2.5s carry=2, StockerBIZ3
+  (-220,320) biz_snacks $180 trip=1.8s carry=3. Headless: DEVIN_SMOKE
+  contrata los 3 reponedores, drena biz_market shelves a 0, pre-fill
+  warehouse=20; tras 6s wall-clock, biz_market shelf=6 (3 viajes × 2),
+  biz_perfume=4 (2 viajes × 2), biz_snacks=9 (3 viajes × 3), warehouse
+  20→1 (19 consumidos). Export HTML5 OK (stocker.gd.remap en .pck
+  108KB, +10KB vs r14).
 
 ---
 

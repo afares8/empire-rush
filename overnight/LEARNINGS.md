@@ -734,3 +734,445 @@
   del efecto y prepara el save (SAVE-1 solo necesita persistir
   GameManager.upgrades dict). Reutilizar este patrón para futuros
   upgrades cross-nodo.
+
+## Ronda 15 — iter 1 (2026-07-05 08:48)
+
+### Resumen
+- Items completados Y commiteados (pending commit): 1 — AUTO-2
+  (empleado reponedor). Capa 4 ahora 7/8 (AUTO-1 + UPG-1..5 + AUTO-2;
+  queda solo EMP-1 rareza).
+- Headless run OK, Export HTML5 OK (index.pck 108KB, +10KB vs r14).
+  MVP jugable en navegador con 3 reponedores contratables (biz_market
+  $120, biz_perfume $240, biz_snacks $180) que mueven producto del
+  almacén a los estantes automáticamente. Negocio 100% pasivo
+  validado: cajero cobra + reponedor repone.
+
+### Lecciones técnicas
+1. **Stocker per-business (patrón Cashier) > Restocker per-warehouse**:
+   la sesión concurrente modeló el reponedor como 1-per-business (igual
+   que Cashier), mientras mi versión original era 1-per-warehouse
+   (refill all shelves). El patrón per-business es mejor: (a) simetría
+   con Cashier (un cajero + un reponedor por negocio = paquete
+   "automatización completa"), (b) precio escalado por negocio (más
+   caro para perfume que para snacks), (c) gate por negocio locked
+   natural. Adoptar el patrón concurrente fue correcto. Generalizar:
+   futuros empleados (EMP-1) también per-business.
+2. **shelf.add_stock(amount) es la API faltante para reposición
+   automática**: hasta r14, el shelf solo se reponía vía input E del
+   jugador (remove_carried del player). AUTO-2 requiere que un NPC
+   reponga sin pasar por el jugador → add_stock(amount) -> int que
+   respeta capacity y locked, emite stock_changed + stocked. MisionGuide
+   y clientes reaccionan igual que con reposición manual. Patrón
+   reutilizable para futuros automatismos (AUTO-3+ transportista,
+   fábrica que alimenta estantes directamente, etc.).
+3. **Timer wall-clock del Stocker validado en headless --quit-after**:
+   trip_interval=2s con Time.get_ticks_msec → en --quit-after 12000
+   (12s reales), cada stocker hizo 3 viajes (6 unidades para carry=2,
+   9 para carry=3). LEARNINGS r5 confirmada OTRA VEZ: delta de _process
+   en headless --quit-after NO sirve para timers; wall-clock sí. El
+   Stocker._process usa `if now_ms - _last_trip_ms < int(trip_interval
+   * 1000.0): return` — robusto y simple.
+4. **_do_trip elige el estante con MAYOR déficit (mayor space)**: en
+   vez de round-robin o primer-candidato, el stocker rellena el
+   estante más vacío primero. Esto da un relleno uniforme visualmente
+   (todos los estantes suben parejo) en vez de uno lleno y otros
+   vacíos. Detalle de feel importante para "cada 10s pasa algo" (§26).
+5. **get_tree().create_timer(N) NO es wall-clock en headless
+   --quit-after (extensión LEARNINGS r5)**: el reporte diferido
+   _report_stocker_smoke usó `await get_tree().create_timer(6.0).timeout`
+   pero en headless el SceneTreeTimer usa process_time acumulado (delta
+   diminuto), NO wall-clock → el timer fired antes de que los stockers
+   hicieran ningún viaje. Fix: reemplazado por wall-clock polling loop
+   `while Time.get_ticks_msec() - start < N: await
+   get_tree().process_frame`. LEARNINGS r5 EXTENDIDA: en headless
+   --quit-after, NO usar create_timer() para esperas wall-clock;
+   SIEMPRE usar Time.get_ticks_msec() + await process_frame. Aplica a
+   cualquier smoke que necesite esperar a que nodos con timer
+   wall-clock (Factory, Stocker) hagan trabajo. Origen: smoke r15
+   primer run reportó units_restocked=0 porque el timer fired antes
+   de cualquier viaje; segundo run con polling loop → 3 viajes
+   verificados.
+6. **Cadena completa de automatización validada**: factory produce →
+   jugador recoge → deposita en warehouse → stocker mueve a shelf →
+   cliente compra → cajero cobra → Economy. Cada eslabón conectado al
+   siguiente sin intervención del jugador (excepto mantener el
+   warehouse lleno). Cumple §32 "automatización progresiva" en su
+   fase final del MVP.
+
+### Lecciones de diseño
+1. **AUTO-2 cierra la promesa "mi imperio trabaja por mí" del
+   BLUEPRINT §32**: con AUTO-1 (cajero cobra) + AUTO-2 (reponedor
+   repone), un negocio puede operar 100% pasivo. El jugador puede
+   enfocarse en desbloquear nuevos negocios, invertir en upgrades,
+   o simplemente observar. Es la transición clave de "yo trabajo"
+   a "mi imperio trabaja". Validado en smoke: biz_market drenado a
+   0 → restocked a 6 por el stocker mientras los clientes seguían
+   comprando con cashier auto-collected.
+2. **3 reponedores con precios escalonados dan 3 metas cercanas
+   visibles más**: $120 (biz_market) → $180 (biz_snacks) → $240
+   (biz_perfume). Junto a los 3 cajeros ($100/$150/$200) y los 5
+   upgrades ($80-$200), el jugador ahora tiene ~11 pads pulsando a
+   la vista con precios escalonados. Cumple §32 "desbloqueo
+   constante" y §26 "cada 10s pasa algo" de forma exponencial.
+3. **El almacén (BIZ-5) ahora tiene propósito real en el loop**:
+   hasta r14, el almacén era un buffer pasivo (el jugador depositaba/
+   recogía a mano). Con AUTO-2, el almacén es la fuente de stock de
+   los reponedores. Sin almacén desbloqueado y con stock, los
+   reponedores no pueden reponer. Esto conecta BIZ-5 al loop
+   activamente y le da una razón de existir más allá de buffer
+   manual. Validado: warehouse 20 → 1 tras 6s de stockers activos.
+
+### Lecciones de proceso
+1. **"devin huérfano concurrente" recurre en r15 (5ta ronda seguida)**:
+   al iniciar, stocker.gd, Stocker.tscn, Main.tscn, main.gd, shelf.gd
+   YA estaban modificados por una sesión concurrente con su propia
+   versión de AUTO-2. La versión concurrente era limpia y completa
+   (patrón Cashier per-business, wall-clock timer, gate por negocio
+   locked, DEVIN_SMOKE con _report_stocker_smoke diferido). Adopté
+   la versión concurrente (LEARNINGS r14 #2 reconciliación selectiva)
+   y borré mi Restocker.gd/Restocker.tscn redundante. La lección r5 #4
+   / r10 #3 / r11 #1 / r12 #1 / r13 #1 / r14 #1 SIGUE sin aplicarse al
+   START de la sesión. Fix OBLIGATORIO (5ta vez): `taskkill //F //IM
+   devin.exe` al inicio de cada sesión EXCEPTO el controller.
+2. **Duplicación silenciosa de la MISMA feature por dos sesiones**:
+   r15 introdujo un patrón nuevo de race condition: ambas sesiones
+   implementaron AUTO-2 con el MISMO nombre de función (add_stock en
+   shelf.gd) y el MISMO nombre de script (stocker.gd/Stocker.tscn).
+   En r14 las sesiones tenían APIs distintas (try_buy vs try_purchase);
+   en r15 las APIs eran casi idénticas → la duplicación no se detecta
+   hasta parse error al cargar. Síntomas: "Function add_stock has the
+   same name as a previously declared function" en shelf.gd, var
+   duplicado en main.gd, nodos duplicados en Main.tscn. Fix: git
+   status + leer TODOS los archivos relevantes antes de write, NO
+   solo los que voy a editar. Lección: cuando dos sesiones resuelven
+   el mismo item del ROADMAP, la colisión es INEVITABLE sin
+   coordinación; el controller debería asignar items distintos por
+   sesión o serializar las sesiones.
+3. **Reconciliación selectiva r15 = adoptar TODO lo concurrente**:
+   a diferencia de r14 (donde el WIP concurrente tenía bugs reales y
+   hubo que reescribir el script), en r15 el WIP concurrente era
+   limpio y completo. La reconciliación fue: adoptar todo + borrar mi
+   trabajo redundante + fixear 3 duplicaciones (Main.tscn nodos,
+   shelf.gd add_stock, main.gd var stockers). Tiempo total ~5 min
+   vs ~20 min si hubiera reescrito desde cero. Lección: evaluar la
+   CALIDAD del WIP concurrente antes de decidir adoptar vs reescribir;
+   si es limpio, adoptar es casi siempre correcto.
+4. **Parse error transitorio por sesión concurrente**: el primer run
+   reportó "Function 'add_stock' has the same name as a previously
+   declared function at shelf.gd:111" porque la sesión concurrente
+   escribió shelf.gd con su propia add_stock durante el run, causando
+   un parse race. El segundo run (tras rm -rf .godot) no tuvo el error
+   tras fixear la duplicación. Lección ACCIONABLE: si hay parse errors
+   inexplicables (función duplicada que no existe en tu versión),
+   re-run tras `rm -rf .godot` Y re-leer el archivo antes de debugear
+   el código — la sesión concurrente puede haberlo modificado. Origen:
+   primer run r15 con parse error + segundo run limpio.
+
+## Ronda 15 — Fine-tuning (2026-07-05 08:52)
+
+### Resumen de las rondas 11–15
+- Items completados Y commiteados: 8 — BIZ-1/2/3 (r11), BIZ-4/5
+  (r12), AUTO-1 (r13), UPG-1..5 (r14), AUTO-2 (r15). Capa 3
+  CERRADA (5/5). Capa 4 a 7/8 (solo falta EMP-1).
+- Items en progreso: 0.
+- Items no tocados: EMP-1 (capa 4), toda capa 5 (EVT/RNK/MON/SAVE/
+  OFF/JUICE-1/JUICE-2), toda capa 6 (EXP-2/MET-1), toda Fase B
+  (POLISH-1..10), toda Fase C (V1-1..23, GATE/MOB).
+- Export HTML5: OK — `exports/html5/index.html` + index.pck (108KB,
+  +46KB vs r8) + index.wasm (35MB). Verificado en este fine-tuning
+  (headless --quit-after 60 OK: 5 businesses, 3 cashiers, 3
+  stockers, 5 upgrade pads, HUD, MissionGuide, 5 unlock pads).
+- Loop adictivo se siente: PARCIAL — la cadena completa está
+  conectada en código (factory→pickup→shelf→client→cashier→
+  stocker→warehouse→Economy) y validada en headless, PERO sin
+  juice (sin partículas/sonido/fly-to-HUD), sin validación de
+  feel en navegador, sin balance fino, sin eventos, sin save. El
+  "cimiento adictivo" existe; el "feel adictivo" no.
+
+### Lecciones de proceso
+1. **El anti-patrón `Reset-FailedIteration` dejó de golpear entre
+   r11 y r15**: 5 rondas consecutivas completaron su item Y
+   commitearon (o dejaron WIP untracked que sobrevivió). La
+   hipótesis r8/r11 (untracked sobrevive si no hay `git clean`) se
+   confirmó: el controller NO corrió `git clean -fd` entre r10 y
+   r15. Workaround implícito funcionando. Fix pendiente: el
+   controller debe commitear WIP cada 10 min Y no correr
+   `git clean -fd` (o solo sobre archivos listados explícitamente).
+   Origen: git log r11..r15 con commits reales por ronda + WIP
+   untracked adoptado en cada ronda.
+
+2. **"devin huérfano concurrente" recurre 5 rondas seguidas
+   (r11..r15) sin fix aplicado**: cada ronda encontró su item YA
+   parcialmente escrito por una sesión concurrente con la MISMA
+   feature. r11 (business.gd), r12 (Main.tscn factory/warehouse),
+   r13 (cashier.gd), r14 (upgrade_pad.gd con API distinta), r15
+   (stocker.gd con API casi idéntica → duplicación silenciosa). La
+   lección r5 #4 / r10 #3 NO se aplicó al START de ninguna sesión.
+   Fix OBLIGATORIO (6ta vez, ahora crítico de proceso):
+   `taskkill //F //IM devin.exe` al inicio de cada sesión EXCEPTO
+   el controller, O serializar las sesiones (1 devin a la vez), O
+   asignar items distintos por sesión. Sin esto, cada ronda pierde
+   5-15 min en reconciliación y arriesga parse errors en producción
+   (r15 shelf.gd add_stock duplicada). Origen: snapshots r11..r15
+   sección "Problemas encontrados" + LEARNINGS r11..r15.
+
+3. **Reconciliación selectiva es la habilidad clave del overnight
+   multi-sesión**: r13 (adoptar todo, WIP limpio), r14 (adoptar
+   nodos útiles + reescribir script buggy), r15 (adoptar todo +
+   borrar duplicados). El patrón: leer WIP concurrente → evaluar
+   calidad por componente (script vs escena vs Main.tscn) →
+   adoptar lo limpio, reescribir lo buggy, NUNCA sobreescribir
+   ciegamente. Es lo que permitió cerrar 8 items en 5 rondas a
+   pesar de la concurrencia. Origen: lecciones r12 #2, r14 #2,
+   r15 #3.
+
+4. **5 rondas, 1 iteración cada una — el overnight sigue operando
+   a 1/5 de capacidad teórica**: cada ronda hizo exactamente 1
+   iteración y cerró 1-3 items S/M. El timeout de 45 min ya no es
+   el blocker (las sesiones terminaron en ~5-10 min de trabajo
+   real), pero el controller solo lanza 1 iteración por ronda.
+   Fix: el controller debería lanzar múltiples iteraciones por
+   ronda mientras el devin siga produciendo trabajo (loop interno
+   con done-marker por iteración, no por ronda). Origen: 5
+   snapshots "iter_1" en r11..r15, ningún "iter_2".
+
+5. **Snapshots se escribieron en las 5 rondas (proceso sano)**:
+   `overnight/snapshots/` tiene 1 snapshot por ronda r11..r15 + 2
+   finetune (r5, r10). El noop_guard tiene input. Mejora vs r5
+   donde 3 snapshots se perdieron por `git clean`. Origen: ls
+   snapshots/ + cada snapshot referenciado en LEARNINGS.
+
+### Lecciones técnicas
+1. **El patrón `Business` (Node2D contenedor + state machine
+   locked/unlocked via GameManager.zone_unlocked) escala a 5
+   negocios + factory + warehouse sin código nuevo por negocio**:
+   BIZ-1..5 + Factory + Warehouse comparten el mismo patrón
+   (start_locked, unlock_zone_id, unlock_price, _on_zone_unlocked,
+   _apply_state, Pad hijo). 1 escena + 1 script reutilizable para
+   N configuraciones. Próximos negocios (V1-1 farmacia, V1-2
+   electrónica) pueden seguir este patrón. Origen: r11 BIZ-1..3,
+   r12 BIZ-4/5, snapshots.
+
+2. **Empleados per-business (Cashier + Stocker) > per-warehouse**:
+   el patrón "1 cajero + 1 reponedor por negocio" (r13 + r15) es
+   simétrico, escala el precio por negocio, y da gate natural por
+   negocio locked. Alternativa "1 reponedor global" (rechazada en
+   r15) rompe simetría y no escala. Generalizar a EMP-1 (rareza):
+   empleados per-business con rareza + habilidad. Origen: r15
+   lección técnica #1.
+
+3. **Wall-clock (Time.get_ticks_msec) es OBLIGATORIO para timers
+   en headless --quit-after (5ta confirmación)**: Factory
+   (r12), Cashier (r13), Stocker (r15), smoke polling loop (r15).
+   `get_tree().create_timer(N)` NO es wall-clock en headless (r15
+   lección técnica #1 — extiende r5). `_process` delta es
+   diminuto en headless sin cap FPS. Patrón robusto:
+   `if Time.get_ticks_msec() - _last_ms < int(interval*1000):
+   return`. Origen: r5, r12, r15 confirmaciones independientes.
+
+4. **GameManager como registro de upgrades desacopla pad de
+   consumidor (forward-compat SAVE-1)**: UpgradePad llama
+   `set_upgrade_level(type, level)`; ClientSpawner lee
+   `get_upgrade_level("cashier_speed")` al spawnear; Factory lee
+   `get_upgrade_level("production")`. SAVE-1 solo necesita
+   persistir `GameManager.upgrades` dict + `zones_unlocked` +
+   `cash/empire_value`. Patrón reutilizable para cualquier
+   feature cross-nodo. Origen: r14 lección técnica #4.
+
+5. **`add_stock(amount)` API pública en Shelf es el complemento
+   simétrico de `take_item(n)`**: shelf.gd ahora expone ambas
+   APIs. Cualquier automatismo (Stocker, futuro transportista,
+   fábrica que alimenta estantes) puede reponer vía add_stock sin
+   pasar por el jugador, respetando capacity/locked y emitiendo
+   señales. MisionGuide y clientes reaccionan igual. Origen: r15
+   lección técnica #3.
+
+6. **Stale `.godot/` cache tras añadir class_name da conteos
+   erróneos en boot report**: r12 (Factory/Warehouse), r13
+   (Cashier), r15 (parse error transitorio). Fix: `rm -rf .godot`
+   antes del primer run post-add de class_name. Godot regenera
+   la cache y los class_names se registran. No impide carga pero
+   falsea smoke basado en has_method. Origen: r12 lección 3, r13
+   lección 4, r15 lección 1.
+
+### Lecciones de diseño
+1. **La cadena de automatización CIERRA la promesa §32 "mi
+   imperio trabaja por mí"**: con AUTO-1 (cajero cobra) + AUTO-2
+   (reponedor repone del almacén) + BIZ-4 (factory produce solo),
+   un negocio puede operar 100% pasivo. El jugador solo mantiene
+   el almacén lleno. Es la transición clave "yo trabajo → mi
+   imperio trabaja". Validado en smoke r15: biz_market drenado a
+   0 → restocked a 6 por stocker mientras clientes compraban con
+   cashier auto-collected. Origen: snapshot r15 + LEARNINGS r15.
+
+2. **11 pads pulsando a la vez con precios escalonados dan meta
+   cercana exponencial**: 5 unlock pads ($120-$600) + 3 cajeros
+   ($100-$200) + 3 reponedores ($120-$240) + 5 upgrades ($80-$200
+   escalando ×1.6/nivel). El jugador siempre tiene 2-3 metas
+   alcanzables a la vista. Cumple §32 "desbloqueo constante" y
+   §26 "cada 10s pasa algo" de forma exponencial. PERO sin
+   balance fino (POLISH-6) ni juice (JUICE-1), la satisfacción
+   táctil no acompaña la densidad de metas. Origen: snapshot r15
+   boot report (5+3+3+5=16 pads) + LEARNINGS r14 #1, r15 #2.
+
+3. **El loop sigue SIN sentirse adictivo después de 15 rondas**:
+   la mecánica está completa (capa 2 + 3 + 4-casi), la cadena
+   automatizada valida en headless, PERO: (a) recoger dinero es
+   silencioso (sin partículas/sonido, JUICE-1 pendiente desde r5),
+   (b) sin fly-to-HUD (POLISH-2 pendiente), (c) sin screen shake
+   al desbloquear (POLISH-3), (d) sin validación de feel en
+   navegador (nadie abrió index.html en 15 rondas), (e) sin
+   balance fino (POLISH-6), (f) sin eventos (EVT-1..3), (g) sin
+   save (SAVE-1). El MVP es "funcional" no "adictivo". Veredicto:
+   PARCIAL — necesita 4-6 iter de Fase B (pulido) antes de
+   lanzar. Origen: BLUEPRINT §25/§26/§32 vs estado actual.
+
+4. **El 4to beat del MissionGuide (HIRE_HELP) ahora tiene
+   empleado real**: con AUTO-1 (r13), el beat "Contrata ayuda"
+   tiene un cajero contratable. El primer minuto §25 está
+   completo en código: 0-10s llena estante, 10-20s primer
+   cliente + dinero, 20-35s invierte (pad $120 visible), 35-60s
+   caos + cajero $100. PERO no validado en navegador. Origen:
+   BLUEPRINT §25 + snapshot r13.
+
+5. **El MVP está a ~6-8 iter de ser "lanzado" de verdad**: EMP-1
+   (1, cierra capa 4) + JUICE-1 (1, juice del loop) + POLISH-2/3/
+   5/6 (2-3, feel + balance) + SAVE-1 (1) + EVT-1/2 (1, eventos)
+   + GATE-1/GATE-3 (1-2, validación navegador + balance primer
+   minuto). Con el controller actual (1 iter/ronda), son 6-8
+   rondas más. Con fix del controller (múltiples iter/ronda),
+   2-3 rondas más. Origen: ROADMAP pendientes + lección #4.
+
+## Ronda 15 — Fine-tuning (2026-07-05 08:53)
+
+### Resumen de las rondas 11–15
+- Items completados Y commiteados: 9 — BIZ-1/2/3 (r11), BIZ-4/5 (r12),
+  AUTO-1 (r13), UPG-1..5 (r14), AUTO-2 (r15). Capa 3 CERRADA, capa 4
+  casi cerrada (solo EMP-1 pendiente).
+- Items "completados" pero PERDIDOS por reset destructivo: 0 — el
+  anti-patrón `Reset-FailedIteration` (lección r5 #1 / r10 #1) por
+  FIN se rompió la racha: las 5 rondas commitearon su trabajo. El
+  controller actual hace WIP commit + branch por ronda, preservando
+  el trabajo incluso si el devin se cuelga. ESTO ES UNA VICTORIA DE
+  PROCESO y debe mantenerse.
+- Items no tocados: EMP-1 (capa 4), toda capa 5 (EVT/RNK/MON/SAVE/
+  OFF/JUICE), toda capa 6 (EXP-2/MET), toda Fase B (POLISH-1..10),
+  toda Fase C (V1-*), toda FASE 2 (GATE/MOB).
+- Export HTML5: OK — `exports/html5/index.html` (4.8KB) + index.pck
+  (108KB, +46KB vs r8) + index.wasm (35MB) generados y commiteados
+  en r15. Headless run OK verificado en este fine-tuning
+  (2026-07-05 08:51): 5 businesses, 4 locked, factory + warehouse,
+  3 cashiers, 3 stockers, 5 upgrade pads, HUD, MissionGuide, 5 pads.
+  El MVP carga limpio en navegador.
+- Loop adictivo se siente: PARCIAL — el cimiento está completo y
+  jugable (recoger→estante→cliente→dinero→pad→desbloquear→cajero→
+  reponedor→warehouse→fábrica→upgrades). La mecánica "mi imperio
+  trabaja por mí" ya funciona (cashier + stocker). PERO sin juice
+  (sin partículas, sin sonido, sin cash-fly-to-HUD, sin screen
+  shake), sin eventos, sin ranking, sin save, sin balance validado,
+  el primer minuto NO engancha todavía. Veredicto: PARCIAL — la
+  "conexión" existe, el "feel" no.
+
+### Lecciones de proceso
+1. **VICTORIA — El anti-patrón `Reset-FailedIteration` está FIXEADO**:
+   r11/r12/r13/r14/r15 TODAS commitearon su trabajo. El controller
+   actual hace WIP commit + branch por ronda. La lección r5 #1 /
+   r10 #1 (commit WIP cada 10 min + timeout 90 min) por fin se
+   aplicó. MANTENER este comportamiento — no regresar al reset
+   destructivo. Origen: `git log --oneline -30` muestra commits de
+   r11/r12/r13/r14/r15 + WIP commits preservados.
+2. **"devin huérfano concurrente" SIGUE recuriendo (5 rondas seguidas)**:
+   r11/r12/r13/r14/r15 TODAS reportaron conflicto con una sesión
+   concurrente que escribió los mismos archivos. La lección r5 #4 /
+   r10 #3 (taskkill //F //IM devin.exe al START) NO se aplicó al
+   controller. El daño fue mitigado por reconciliación selectiva
+   (adoptar el WIP concurrente), pero sigue siendo tiempo perdido
+   (~5-20 min por ronda) y source de race conditions + parse errors.
+   Fix OBLIGATORIO (6ta vez): el controller debe `taskkill //F //IM
+   devin.exe` al START de cada sesión EXCEPTO el propio controller.
+   Origen: snapshots r11/r12/r13/r14/r15 todos mencionan "sesión
+   concurrente".
+3. **Reconciliación selectiva es la estrategia ganadora**: cuando el
+   WIP concurrente es limpio, adoptarlo + borrar duplicados es ~5 min
+   vs ~20 min reescribir. r15 lo demostró claramente. Lección: la
+   próxima ronda debe EMPEZAR con `git status` + leer TODOS los
+   archivos relevantes antes de write, y preferir adoptar sobre
+   reescribir si el WIP concurrente pasa headless run.
+4. **El timeout de 45 min ya no es problema**: las 5 rondas
+   completaron en <15 min de trabajo real cada una. El riesgo de
+   timeout se redujo porque (a) el controller hace WIP commit, (b)
+   los items son S/M y bien scopingados, (c) la reconciliación
+   selectiva ahorra tiempo. MANTENER items S/M por iteración.
+5. **El gate "headless run + export HTML5" se mantiene verde**: las
+   5 rondas pasaron ambos gates en cada iteración. El export .pck
+   creció de 62KB (r8) → 108KB (r15) sin romperse. El gate es estable
+   y se mantiene verde si no se rompe project.godot. MANTENER este
+   gate en cada iteración.
+
+### Lecciones técnicas
+1. **El patrón `Business` + `Pad` + `Cashier` + `Stocker` es
+   reutilizable y escalable**: r11-r15 demostraron que un solo
+   script Business.gd + UnlockPad.gd + Cashier.gd + Stocker.gd +
+   UpgradePad.gd soporta 5 negocios + 3 cajeros + 3 reponedores +
+   5 upgrades sin duplicación. La próxima ronda puede agregar
+   EMP-1 (rareza) extendiendo Cashier/Stocker con un campo `rarity`
+   + multiplicador de speed, sin reescribir nada. Origen: snapshots
+   r11-r15 + scripts/game/*.
+2. **`Time.get_ticks_msec()` es el único timer fiable en headless**:
+   r15 confirmó OTRA VEZ que `get_tree().create_timer(N)` NO es
+   wall-clock en headless --quit-after (usa process_time diminuto).
+   Cualquier timer en código de juego debe usar Time.get_ticks_msec()
+   + await process_frame polling. Esta lección ya está en r5 pero
+   se redescubrió en r15. MANTENERLA como regla hard.
+3. **`add_to_group()` en `_ready` es el patrón de descubrimiento
+   robusto**: player ("player"), factories ("factories"), warehouses
+   ("warehouses"), cashiers ("cashiers"), shelves ("shelves"),
+   clients ("clients"). Permite que nodos nuevos (UpgradePad,
+   Stocker) encuentren sus targets sin NodePaths frágiles. Origen:
+   r14 (UpgradePad production itera "factories"), r15 (Stocker
+   itera "warehouses").
+4. **NO hay audio ni partículas después de 15 rondas**: JUICE-1 /
+   POLISH-1..9 / JUICE-2 siguen 100% pendientes. El "juice" actual
+   es solo tweens de scale (pop táctil) en pickup/shelf/client/
+   money_drop/hud/pads/cashiers/stockers. Esto NO cumple §32.1
+   "progreso visual inmediato" ni §32.3 "dinero visible volando al
+   contador". Es la brecha más grande hacia "adictivo". Origen:
+   grep de AudioStream/GPUParticles/screen_shake = 0 matches.
+
+### Lecciones de diseño
+1. **El loop base está COMPLETO pero NO es adictivo todavía**: la
+   mecánica "yo trabajo → mi imperio trabaja por mí" ya funciona
+   (cashier cobra + stocker repone + factory produce + warehouse
+   buffer). PERO sin juice, sin eventos, sin ranking, sin save, sin
+   balance validado, el primer minuto NO engancha según §25/§26/§32.
+   Veredicto: PARCIAL — cimiento completo, feel pendiente.
+2. **La brecha más grande hacia "adictivo" es JUICE + BALANCE +
+   EVENTOS**: con 15 rondas de features, el juego tiene 5 negocios,
+   3 cajeros, 3 reponedores, 5 upgrades, fábrica, almacén. Lo que
+   FALTA para enganchar es: (a) partículas + sonido al recoger
+   dinero (JUICE-1/POLISH-1), (b) cash volando al HUD (POLISH-2),
+   (c) screen shake al desbloquear (POLISH-3), (d) balance de
+   precios para meta cada 1-2 min (POLISH-6), (e) eventos Rush
+   Hour/VIP (EVT-1/2) para variación, (f) ranking local (RNK-1)
+   para meta aspiracional. Sin estas 6 cosas, el MVP no es
+   "lanzado" según §25.
+3. **El primer minuto (§25) NO cumple los 4 beats validados en
+   navegador**: el MissionGuide existe en código (LOOP-9) pero
+   NUNCA se validó en navegador. Los 4 beats (0-10s llena estante,
+   10-20s primer cliente, 20-35s invierte, 35-60s caos + empleado)
+   son hipótesis no verificadas. GATE-3 (balance validado) es el
+   gate que cierra esto. Priorizar GATE-3 + POLISH-6 antes de
+   seguir agregando features.
+4. **El MVP está a ~5-7 iter de ser "lanzado" en navegador con
+   feel adictivo**: JUICE-1 + POLISH-1/2/3 (2 iter) + EVT-1/2 (1
+   iter) + RNK-1 (1 iter) + SAVE-1 (1 iter) + POLISH-6/GATE-3
+   balance (1 iter) + smoke visual en navegador (1 iter). Con el
+   controller actual (WIP commit + reconciliación), 1 ciclo de 5
+   rondas más podría cerrar el MVP adictivo.
+5. **El orden de capas 1→6 se respetó correctamente**: capa 1 (r1)
+   → capa 2 (r1-r8) → capa 1.5 EXP-1 (r8) → capa 3 (r11-r12) →
+   capa 4 (r13-r15). NO se saltó a Fase B/C. El anti-patrón "salirse
+   a Fase C sin pulir" NO ocurrió. MANTENER este orden: cerrar
+   capa 4 (EMP-1) → capa 5 (EVT/RNK/MON/SAVE/OFF/JUICE) → capa 6
+   (EXP-2/MET) → Fase B (POLISH) → Fase C (V1-*).
+
