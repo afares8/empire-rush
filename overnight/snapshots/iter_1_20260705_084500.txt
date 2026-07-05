@@ -1,0 +1,124 @@
+# Snapshot — Iteración 1 (ronda 15)
+Fecha: 2026-07-05 08:45
+Item(s) trabajados: AUTO-2
+Estado: completado
+
+Fase actual: A (construyendo MVP)
+Justificación: capa 3 cerrada (r12), capa 4 abierta con AUTO-1 (r13) +
+UPG-1..5 (r14). AUTO-2 (reponedor, M) es el siguiente item de capa 4
+por orden de prioridad. Con AUTO-2, el loop de automatización se
+completa: cajero cobra + reponedor repone = negocio 100% pasivo.
+Cumple BLUEPRINT §32 "automatización progresiva" y la promesa "mi
+imperio trabaja por mí". Queda EMP-1 (rareza, M) antes de capa 5.
+
+## Cambios
+- scripts/game/shelf.gd (modificado): añadida API pública
+  add_stock(amount) -> int para que el reponedor reponga sin pasar
+  por el jugador. Respeta capacity y locked. Emite stock_changed +
+  stocked. Devuelve unidades realmente añadidas.
+- scripts/game/stocker.gd (NUEVO): Stocker Area2D, empleado reponedor.
+  @export target_business_id, hire_price, stocker_name, trip_interval
+  (segundos reales entre viajes, default 2.0), carry_per_trip (unidades
+  movidas por viaje, default 2). try_hire() gasta cash, marca _hired,
+  resuelve referencias sincrónico si call_deferred pendiente (LEARNINGS
+  r13 #2). _process con timer wall-clock Time.get_ticks_msec cada
+  trip_interval segundos (LEARNINGS r5: delta diminuto en headless).
+  _do_trip: retira carry_per_trip del Warehouse (grupo "warehouses",
+  primer nodo not locked), deposita en el estante del negocio objetivo
+  con más espacio (mayor capacity - stock). Gate por negocio bloqueado:
+  si target business locked, stocker oculto hasta business_unlocked.
+  NO reusa GameManager.unlock_zone (igual que Cashier, LEARNINGS r13
+  #1). Pulso verde loop + pop táctil al contratar y al reponer.
+  units_restocked contador para telemetría futura.
+- scenes/Stocker.tscn (NUEVO): Area2D + Body ColorRect 64x64 verde +
+  PriceLabel + PromptLabel "E para contratar reponedor" + AreaShape
+  80x80. Mirror de Cashier.tscn con tint verde.
+- scenes/Main.tscn (modificado): añadido ext_resource Stocker.tscn
+  (id 14), load_steps=15. 3 instancias: StockerBIZ1 (-60,140)
+  biz_market $120 trip=2s carry=2, StockerBIZ2 (300,-60) biz_perfume
+  $240 trip=2.5s carry=2, StockerBIZ3 (-220,320) biz_snacks $180
+  trip=1.8s carry=3. Posiciones offset de los Cashier para no
+  solaparse.
+- scripts/game/main.gd (modificado): boot report añade
+  "Stockers=%d hired=%d". DEVIN_SMOKE: pre-fill warehouse=20 (era 10),
+  drena biz_market shelves a 0 para dar trabajo al reponedor, contrata
+  los 3 reponedores, reporte diferido _report_stocker_smoke() con
+  wall-clock polling loop (6s reales via Time.get_ticks_msec + await
+  process_frame) reporta biz_market shelf stock, units_restocked per
+  stocker, warehouse stock final.
+- ROADMAP.md: AUTO-2 marcado [x] r15/i1 y movido a Completados con
+  detalle. Backlog capa 4 ahora solo EMP-1.
+
+## Verificación
+- Headless run: OK
+  `godot --headless --quit-after 60`:
+    [Business] biz_market ready, locked=false zone=
+    [Business] biz_perfume ready, locked=true zone=zone_perfume
+    [Business] biz_snacks ready, locked=true zone=zone_snacks
+    [Factory] biz_factory ready, locked=true zone=zone_factory
+    [Main] Businesses=5 locked=4
+    [Main] Factory=true Warehouse=true
+    [Main] Active shelves=1/4
+    [Main] ClientSpawner=true
+    [Main] HUD=true MissionGuide=true UnlockPads=5
+    [Main] Cashiers=3 hired=0
+    [Main] Stockers=3 hired=0
+    [Main] UpgradePads=5 total_level=0
+  3 stockers cargan sin crash. Sin errores de parse ni warnings.
+- Export HTML5: OK
+  `godot --headless --export-release "HTML5" exports/html5/index.html`
+  genera index.html + index.js + index.pck (108KB, +10KB vs r14) +
+  index.wasm (35MB) sin errores. stocker.gd.remap incluido en .pck.
+- Smoke del item: OK
+  `DEVIN_SMOKE=1 godot --headless --quit-after 10000`:
+    [Stocker] contratado para biz_market por $120
+    [Stocker] contratado para biz_perfume por $240
+    [Stocker] contratado para biz_snacks por $180
+    [Stocker] biz_snacks -> snack: +3 (total reposido=3)
+    [Stocker] biz_market -> camiseta: +2 (total reposido=2)
+    [Stocker] biz_perfume -> perfume: +2 (total reposido=2)
+    [Stocker] biz_snacks -> snack: +3 (total reposido=6)
+    [Stocker] biz_market -> camiseta: +2 (total reposido=4)
+    [Stocker] biz_perfume -> perfume: +2 (total reposido=4)
+    [Stocker] biz_snacks -> snack: +3 (total reposido=9)
+    [Stocker] biz_market -> camiseta: +2 (total reposido=6)
+    [Main] DEVIN_SMOKE: biz_market shelf stock=6 (drained=0, restocked by stocker)
+    [Main] DEVIN_SMOKE: stocker biz_market units_restocked=6
+    [Main] DEVIN_SMOKE: stocker biz_perfume units_restocked=4
+    [Main] DEVIN_SMOKE: stocker biz_snacks units_restocked=9
+    [Main] DEVIN_SMOKE: warehouse stock=1 (consumed by stockers)
+  Los 3 reponedores se contratan y reponen automáticamente del
+  almacén a los estantes. biz_market (drained=0) → 6 unidades tras 3
+  viajes (trip_interval=2s, carry=2). warehouse 20→1 (19 consumidos:
+  6+4+9). El loop de automatización está conectado: warehouse →
+  stocker → shelf → cliente → cajero → Economy. Un negocio con
+  cajero + reponedor + warehouse con stock opera 100% pasivo.
+
+## Próximo item sugerido
+EMP-1 — Sistema de rareza de empleados (capa 4, M). común/raro/
+épico/legendario con habilidades especiales. Al menos 3 empleados
+con habilidades distintas. Alternativa: saltar a capa 5 (EVT-1 Rush
+Hour, S) si se prefiere eventos antes que profundizar empleados.
+Recomendación: EMP-1 primero — cierra la capa 4 y destraba la
+transición a capa 5 (eventos/save/juice). Con AUTO-1 + AUTO-2 +
+UPG-1..5 + EMP-1, la capa 4 estaría 100% cerrada.
+
+## Problemas encontrados
+- get_tree().create_timer(6.0) NO es wall-clock en headless
+  --quit-after: el primer intento de reporte diferido usó
+  await get_tree().create_timer(6.0).timeout, pero el reporte fired
+  antes de que el factory produjera 1 unidad (production_time=2.4s
+  wall-clock). Esto significa que el SceneTreeTimer en headless usa
+  process_time acumulado (delta diminuto), NO wall-clock. Fix:
+  reemplazado por wall-clock polling loop con Time.get_ticks_msec() +
+  await get_tree().process_frame. LEARNINGS r5 confirmada OTRA VEZ:
+  en headless --quit-after, cualquier timer debe usar
+  Time.get_ticks_msec(), no delta ni create_timer. Esta es una
+  lección nueva ACCIONABLE para LEARNINGS.
+- Parse error transitorio "add_stock duplicate" en shelf.gd: el
+  primer run reportó "Function 'add_stock' has the same name as a
+  previously declared function at line 111" pero el archivo solo
+  tenía una add_stock. Hipótesis: sesión concurrente escribió shelf.gd
+  con su propia add_stock durante el run, causando un parse race.
+  El segundo run (tras rm -rf .godot) no tuvo el error. Lección:
+  re-run tras limpiar .godot si hay parse errors inexplicables.

@@ -82,6 +82,22 @@ func take_item(n: int = 1) -> int:
 	_update_visual()
 	return to_take
 
+# AUTO-2: API pública para que el reponedor (Stocker) reponga sin
+# pasar por el jugador. Respeta capacity y locked. Devuelve cuántas
+# unidades realmente entraron.
+func add_stock(amount: int) -> int:
+	if locked:
+		return 0
+	var space: int = capacity - stock
+	var to_add: int = clamp(amount, 0, space)
+	if to_add <= 0:
+		return 0
+	stock += to_add
+	emit_signal("stock_changed", stock)
+	emit_signal("stocked", to_add)
+	_update_visual()
+	return to_add
+
 func is_empty() -> bool:
 	return stock <= 0
 

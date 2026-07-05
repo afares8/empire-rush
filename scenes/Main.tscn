@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3 uid="uid://main_scene_ter"]
+[gd_scene load_steps=15 format=3 uid="uid://main_scene_ter"]
 
 [ext_resource type="Script" path="res://scripts/game/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2_player"]
@@ -11,6 +11,7 @@
 [ext_resource type="PackedScene" path="res://scenes/Warehouse.tscn" id="11_wh"]
 [ext_resource type="PackedScene" path="res://scenes/Cashier.tscn" id="12_cash"]
 [ext_resource type="PackedScene" path="res://scenes/UpgradePad.tscn" id="13_upg"]
+[ext_resource type="PackedScene" path="res://scenes/Stocker.tscn" id="14_stk"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -98,6 +99,30 @@ position = Vector2(-280, 260)
 target_business_id = "biz_snacks"
 hire_price = 150.0
 cashier_name = "Cajero del Mini Market"
+
+[node name="StockerBIZ1" parent="World" instance=ExtResource("14_stk")]
+position = Vector2(-60, 140)
+target_business_id = "biz_market"
+hire_price = 120.0
+stocker_name = "Reponedor del Puesto"
+trip_interval = 2.0
+carry_per_trip = 2
+
+[node name="StockerBIZ2" parent="World" instance=ExtResource("14_stk")]
+position = Vector2(300, -60)
+target_business_id = "biz_perfume"
+hire_price = 240.0
+stocker_name = "Reponedor de Perfumes"
+trip_interval = 2.5
+carry_per_trip = 2
+
+[node name="StockerBIZ3" parent="World" instance=ExtResource("14_stk")]
+position = Vector2(-220, 320)
+target_business_id = "biz_snacks"
+hire_price = 180.0
+stocker_name = "Reponedor del Mini Market"
+trip_interval = 1.8
+carry_per_trip = 3
 
 [node name="UpgradeSpeed" parent="World" instance=ExtResource("13_upg")]
 position = Vector2(80, 100)
