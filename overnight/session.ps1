@@ -86,50 +86,47 @@ try {
         }
         if (-not (Test-Path $LogFile)) { New-Item -ItemType File -Path $LogFile -Force | Out-Null }
 
-        # ---- Watchdog: Start-Process con redirección + monitor de idle ----
+        # ---- Watchdog via Start-Job + pipeline + monitor de idle ----
         # Root cause del bug: devin.exe en modo -p a veces NO sale despues de
         # imprimir su resumen. El pipeline `& devin | ForEach-Object` se queda
         # bloqueado esperando que devin cierre stdout => el finally de
         # session.ps1 nunca se ejecuta => el marker nunca se crea => el
         # controller espera 90 min de timeout para matar el arbol.
         #
-        # Fix: lanzar devin con Start-Process + -RedirectStandardOutput al log
-        # file. Monitorear el tamaño del log file. Si devin no produce output
-        # nuevo por N segundos (idle), asumir que termino y matarlo. Asi el
-        # pipeline nunca se bloquea y el marker se crea inmediatamente.
-        $errFile = [System.IO.Path]::ChangeExtension($LogFile, "err")
-        $devinArgs = @(
-            "--model", "glm-5.2",
-            "--permission-mode", "dangerous",
-            "-p",
-            "--prompt-file", "`"$PromptFile`""
-        )
-        $devinProc = Start-Process -FilePath "devin" `
-            -ArgumentList $devinArgs `
-            -PassThru -NoNewWindow `
-            -RedirectStandardOutput $LogFile `
-            -RedirectStandardError $errFile
+        # Fix: lanzar devin en un Start-Job (background PowerShell) que usa
+        # el pipeline (captura output correctamente, a diferencia de
+        # Start-Process -RedirectStandardOutput que no captura console APIs).
+        # El foreground monitorea el tamano del log file. Si devin no produce
+        # output nuevo por 60s (idle), Stop-Job mata el job + devin. Asi el
+        # foreground nunca se bloquea y el marker se crea inmediatamente.
+        $job = Start-Job -ScriptBlock {
+            param($pf, $lf, $wd, $round, $iter)
+            Set-Location $wd
+            $env:DEVIN_OVERNIGHT_ROUND = "$round"
+            $env:DEVIN_OVERNIGHT_ITER  = "$iter"
+            & devin --model glm-5.2 --permission-mode dangerous -p --prompt-file "$pf" 2>&1 | ForEach-Object {
+                $_ | Out-File -FilePath "$lf" -Encoding UTF8 -Append
+            }
+            $LASTEXITCODE
+        } -ArgumentList $PromptFile, $LogFile, $WorkDir, $Round, $Iteration
 
-        $devinPid = $devinProc.Id
-        Write-Host "Devin lanzado (PID $devinPid). Watchdog activo..."
+        Write-Host "Devin lanzado en background job (Id $($job.Id)). Watchdog activo..."
 
         $lastLogSize = 0
         $lastActivity = Get-Date
         $idleThreshold = 60  # 60s sin output nuevo → asumir hung
 
-        while (-not $devinProc.HasExited) {
+        while ($job.State -eq 'Running') {
             Start-Sleep -Seconds 3
             # Stream contenido nuevo del log a la consola
             if (Test-Path $LogFile) {
                 try {
                     $currentSize = (Get-Item $LogFile).Length
                     if ($currentSize -gt $lastLogSize) {
-                        # Hay output nuevo → reset idle timer
                         $lastActivity = Get-Date
-                        # Leer y mostrar lineas nuevas
                         $allLines = Get-Content $LogFile -ErrorAction SilentlyContinue
                         if ($allLines) {
-                            $linesSoFar = [int]($lastLogSize / 200)  # estimacion tosca
+                            $linesSoFar = [int]($lastLogSize / 200)
                             if ($linesSoFar -lt $allLines.Count) {
                                 $allLines[$linesSoFar..($allLines.Count - 1)] | ForEach-Object { Write-Host $_ }
                             }
@@ -142,9 +139,8 @@ try {
             $idleSecs = [int]((Get-Date) - $lastActivity).TotalSeconds
             if ($idleSecs -gt $idleThreshold) {
                 Write-Host ""
-                Write-Host "[Watchdog] Devin sin output por ${idleSecs}s (>$idleThreshold). Asumiendo terminado. Matando PID $devinPid..."
-                try { Stop-Process -Id $devinPid -Force -ErrorAction SilentlyContinue } catch {}
-                Start-Sleep -Seconds 2
+                Write-Host "[Watchdog] Devin sin output por ${idleSecs}s (>$idleThreshold). Asumiendo terminado. Matando job..."
+                Stop-Job $job -Force -ErrorAction SilentlyContinue
                 break
             }
         }
@@ -165,10 +161,15 @@ try {
             } catch { }
         }
 
-        $ec = if ($null -ne $devinProc.ExitCode) { $devinProc.ExitCode } else { 0 }
-        # Si fue matado por watchdog (exit code negativo o null), tratar como exito
-        # si produjo trabajo — el noop_guard lo verificara despues.
-        if ($ec -lt 0 -or $null -eq $ec) { $ec = 0 }
+        # Obtener exit code del job
+        $ec = 0
+        try {
+            $results = Receive-Job $job -ErrorAction SilentlyContinue
+            if ($results -and $results.Count -gt 0) {
+                $ec = [int]$results[-1]
+            }
+        } catch { }
+        Remove-Job $job -Force -ErrorAction SilentlyContinue
     } catch {
         Write-Host "EXCEPCION ejecutando devin: $_"
         Write-Marker "CRASH: devin lanzo excepcion: $_"

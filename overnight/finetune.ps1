@@ -98,29 +98,26 @@ try {
         }
         if (-not (Test-Path $LogFile)) { New-Item -ItemType File -Path $LogFile -Force | Out-Null }
 
-        # ---- Watchdog: Start-Process con redirección + monitor de idle ----
+        # ---- Watchdog via Start-Job + pipeline + monitor de idle ----
         # (mismo fix que session.ps1 — ver comentario ahi)
-        $errFile = [System.IO.Path]::ChangeExtension($LogFile, "err")
-        $devinArgs = @(
-            "--model", "glm-5.2",
-            "--permission-mode", "dangerous",
-            "-p",
-            "--prompt-file", "`"$PromptFile`""
-        )
-        $devinProc = Start-Process -FilePath "devin" `
-            -ArgumentList $devinArgs `
-            -PassThru -NoNewWindow `
-            -RedirectStandardOutput $LogFile `
-            -RedirectStandardError $errFile
+        $job = Start-Job -ScriptBlock {
+            param($pf, $lf, $wd, $round)
+            Set-Location $wd
+            $env:DEVIN_OVERNIGHT_ROLE   = "finetune"
+            $env:DEVIN_OVERNIGHT_ROUND  = "$round"
+            & devin --model glm-5.2 --permission-mode dangerous -p --prompt-file "$pf" 2>&1 | ForEach-Object {
+                $_ | Out-File -FilePath "$lf" -Encoding UTF8 -Append
+            }
+            $LASTEXITCODE
+        } -ArgumentList $PromptFile, $LogFile, $WorkDir, $Round
 
-        $devinPid = $devinProc.Id
-        Write-Host "Devin lanzado (PID $devinPid). Watchdog activo..."
+        Write-Host "Devin lanzado en background job (Id $($job.Id)). Watchdog activo..."
 
         $lastLogSize = 0
         $lastActivity = Get-Date
         $idleThreshold = 60
 
-        while (-not $devinProc.HasExited) {
+        while ($job.State -eq 'Running') {
             Start-Sleep -Seconds 3
             if (Test-Path $LogFile) {
                 try {
@@ -141,9 +138,8 @@ try {
             $idleSecs = [int]((Get-Date) - $lastActivity).TotalSeconds
             if ($idleSecs -gt $idleThreshold) {
                 Write-Host ""
-                Write-Host "[Watchdog] Devin sin output por ${idleSecs}s (>$idleThreshold). Asumiendo terminado. Matando PID $devinPid..."
-                try { Stop-Process -Id $devinPid -Force -ErrorAction SilentlyContinue } catch {}
-                Start-Sleep -Seconds 2
+                Write-Host "[Watchdog] Devin sin output por ${idleSecs}s (>$idleThreshold). Asumiendo terminado. Matando job..."
+                Stop-Job $job -Force -ErrorAction SilentlyContinue
                 break
             }
         }
@@ -164,8 +160,14 @@ try {
             } catch { }
         }
 
-        $ec = if ($null -ne $devinProc.ExitCode) { $devinProc.ExitCode } else { 0 }
-        if ($ec -lt 0 -or $null -eq $ec) { $ec = 0 }
+        $ec = 0
+        try {
+            $results = Receive-Job $job -ErrorAction SilentlyContinue
+            if ($results -and $results.Count -gt 0) {
+                $ec = [int]$results[-1]
+            }
+        } catch { }
+        Remove-Job $job -Force -ErrorAction SilentlyContinue
     } catch {
         Write-Host "EXCEPCION ejecutando devin: $_"
         Write-Marker "CRASH: devin lanzo excepcion: $_"
