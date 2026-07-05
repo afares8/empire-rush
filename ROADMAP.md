@@ -1,5 +1,16 @@
 # Trade Empire Rush — ROADMAP
 
+> **Re-priorizado por fine-tuning ronda 5 (2026-07-05)**: EXP-1
+> (export HTML5) sube a P0 dentro de la Fase A, inmediatamente
+> después de cerrar capa 2 (LOOP-7/8/9). Razón: después de 5 rondas
+> NO hay export HTML5, lo que significa que todo el "smoke" fue
+> headless y NUNCA se validó el feel real del loop en navegador.
+> El export debe existir ANTES de capa 3 (contenido) para que cada
+> item de contenido se pueda probar en navegador. Además, LOOP-7/8/9
+> fueron "completados" 3 veces (r3, r4, r5) pero perdidos por el
+> reset destructivo del controller — siguen pendientes en git y son
+> el primer item a re-hacer.
+
 > Backlog priorizado del MVP. Fuente de verdad de qué construir cada
 > iteración. Ordenado por **capas de cimiento → superficie** (igual que
 > el overnight de Magnate: primero la base que destraba todo lo demás,
@@ -30,6 +41,19 @@ lanzamiento.**
 ### Capa 1 — Engine + proyecto base (destraba todo)
 
 > Completada en ronda 1, iter 1. Ver `## Completados`.
+
+### Capa 1.5 — Gate de export HTML5 (OBLIGATORIO antes de capa 2)
+
+> Re-priorizado ronda 5: sin export HTML5 funcionando, todo smoke es
+> headless y no valida feel real. Este es el gate que separa "código
+> que compila" de "MVP jugable". Hacer PRIMERO y mantener verde en
+> cada iteración posterior.
+
+- [ ] **EXP-1** (P0, M) — Export HTML5 del MVP. Configurar preset
+  `export_presets.cfg` para HTML5. Exportar a
+  `exports/html5/index.html`. Criterio: `exports/html5/index.html`
+  abre en navegador y el juego corre (player visible, se mueve con
+  WASD). **Gate**: si esto falla, no se toca capa 2/3.
 
 ### Capa 2 — Loop base (recoger → vender → cobrar → invertir)
 
@@ -145,12 +169,8 @@ lanzamiento.**
 - [ ] **JUICE-2** (P2, S) — Música de fondo + SFX placeholders
   (libres de licencia o generados con Godot). Criterio: hay audio.
 
-### Capa 6 — Export HTML5 + landing + métricas
+### Capa 6 — Landing + métricas (export ya hecho en capa 1.5)
 
-- [ ] **EXP-1** (P0, M) — Export HTML5 del MVP. Configurar preset
-  `export_presets.cfg` para HTML5. Exportar a
-  `exports/html5/index.html`. Criterio: `exports/html5/index.html`
-  abre en navegador y el juego corre.
 - [ ] **EXP-2** (P1, S) — Landing page mínima (`exports/html5`
   sirve el juego + un index con título "Trade Empire Rush" y botón
   "Jugar"). Criterio: la landing carga el juego.
@@ -334,3 +354,38 @@ lanzamiento.**
 
 **Regla de oro**: el MVP debe poder jugarse 15–30 min sin aburrirse
 antes de declararlo "lanzado".
+
+---
+
+## 🎯 FASE 2 — Versión 1.0 (post-MVP)
+
+> Agregado por fine-tuning ronda 5. Estos items cierran el gap entre
+> el MVP entregado (capa 1-6) y el BLUEPRINT.md §20 (versión 1.0).
+> NO se tocan hasta que Fase A (capa 1-6) Y Fase B (capa 7 pulido)
+> estén completas y el MVP sea adictivo según §25/§26/§32/§33.
+> Los items V1-* de FASE C ya existente cubren el contenido 1.0;
+> esta sección agrupa los gaps estructurales detectados.
+
+### Gates de calidad pre-1.0
+- [ ] **GATE-1** (P0, S) — Export HTML5 estable: el juego corre 5
+  min en navegador sin crash ni memory leak visible. Criterio:
+  smoke manual de 5 min en navegador pasa.
+- [ ] **GATE-2** (P0, S) — Save/load robusto (SAVE-1) que sobrevive
+  reload del navegador (localStorage en HTML5, no solo
+  `user://`). Criterio: al refrescar navegador, el progreso
+  persiste.
+- [ ] **GATE-3** (P0, M) — Balance validado: el primer minuto
+  cumple §25 (0-10s llena estante, 10-20s primer cliente, 20-35s
+  invierte, 35-60s caos + empleado). Criterio: smoke en navegador
+  cumple los 4 beats.
+
+### Mobile readiness (pre-export Android/iOS)
+- [ ] **MOB-1** (P1, S) — Touch controls: joystick virtual +
+  botón de acción. Criterio: el juego es jugable con touch en
+  navegador mobile.
+- [ ] **MOB-2** (P1, S) — UI escalable: HUD y pads se ven bien en
+  pantalla vertical y horizontal. Criterio: layout no se rompe en
+  9:16 y 16:9.
+- [ ] **MOB-3** (P1, M) — Performance mobile: 60 FPS en
+  navegador mobile con 10 NPCs + 20 pickups. Criterio: profiler
+  Godot muestra <16ms/frame.
