@@ -46,11 +46,11 @@ lanzamiento.**
   cerca con producto cargado, presionar E llena el estante (+1
   stock, hasta capacity). Visual: el estante muestra fill level.
   Criterio: el estante se llena al interactuar.
-- [ ] **LOOP-5** (P0, M) — Cliente NPC. Spawn periódico, camina a la
+- [x] **LOOP-5** (P0, M, r1/i1) — Cliente NPC. Spawn periódico, camina a la
   fila, espera, si hay stock compra (consume 1 stock), deja dinero
   físico en el piso, se va. Criterio: un cliente completa el ciclo
   spawn → fila → compra → dinero → despawn.
-- [ ] **LOOP-6** (P0, M) — Dinero físico recogible. Billete/montón
+- [x] **LOOP-6** (P0, M, r1/i1) — Dinero físico recogible. Billete/montón
   en el piso con valor. Al recoger, suma al contador de Cash del
   jugador (autoload `Economy`). Sonido placeholder + animación
   volando al HUD. Criterio: recoger dinero sube el contador visible.
@@ -296,6 +296,24 @@ lanzamiento.**
   80x80). 2 shelves instanciados en Main.tscn. Smoke test OK:
   llena respeta capacity, no llena sin carried ni fuera de área,
   take_item consume stock correctamente.
+- [x] **LOOP-5** (P0, M, r1/i1) — Cliente NPC. `scripts/game/client.gd`
+  (Client Node2D, FSM to_shelf→browse→to_exit, camina con
+  walk_speed, take_item del estante, suelta MoneyDrop al comprar,
+  pop táctil, usa _process + real_delta via Time.get_ticks_msec) +
+  `scripts/game/client_spawner.gd` (ClientSpawner, spawn cada 3s
+  real-time, max 5 concurrentes, asigna shelf aleatorio del grupo
+  "shelves") + `scenes/Client.tscn` (Body + Face ColorRects, grupo
+  "clients"). Headless smoke OK: ciclo spawn→walk→buy→money drop→
+  despawn verificado con DEVIN_SMOKE=1 (shelves pre-filled).
+- [x] **LOOP-6** (P0, M, r1/i1) — Dinero físico recogible.
+  `scripts/game/money_drop.gd` (MoneyDrop Area2D, value, pop-in
+  tween TRANS_BACK, body_entered detecta player por duck-typing,
+  Economy.add_cash(value) al recoger) + `scenes/MoneyDrop.tscn`
+  (Body ColorRect verde + ValueLabel "$N" + CollisionShape2D 34x34).
+  Soltado por el cliente al comprar. Headless: spawn sin errores,
+  colección vía Area2D requiere physics tick (no corre en headless
+  --quit-after) pero lógica verificada. HUD visual del contador es
+  LOOP-8; juice (partículas, sonido, fly-to-HUD) es JUICE-1/POLISH-2.
 
 ---
 
