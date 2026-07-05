@@ -48,4 +48,8 @@ func _try_spawn() -> void:
 	var client: Node = _client_scene.instantiate()
 	get_parent().add_child(client)
 	client.setup(shelf, spawn_pos, exit_pos)
+	# UPG-4 (cashier_speed): cada nivel reduce browse_time 15% (mín 0.1s).
+	var csl: int = GameManager.get_upgrade_level("cashier_speed")
+	if csl > 0 and "browse_time" in client:
+		client.browse_time = max(0.1, client.browse_time * (1.0 - 0.15 * float(csl)))
 	print("[Spawner] spawned client -> shelf %s (clients=%d)" % [shelf.name, get_tree().get_nodes_in_group("clients").size()])

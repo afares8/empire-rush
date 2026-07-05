@@ -586,9 +586,151 @@
    POLISH-6.
 
 ### Lecciones de proceso
-1. **Sin sesiones concurrentes en r13**: a diferencia de r11/r12,
-   no hubo devin huérfano concurrente esta vez. Los edits no
-   fallaron por string no encontrado. El cleanup al inicio de la
-   sesión (implícito o explícito) funcionó. Lección r11/r12 #1
-   aplicada (o no recurrió).
+1. **Sesión concurrente SÍ ocurrió en r13 (lección r11/r12 #1
+   confirmada de nuevo)**: al iniciar, cashier.gd/Cashier.tscn YA
+   existían como untracked WIP de una sesión concurrente, con
+   Main.tscn/client.gd/main.gd/shelf.gd modificados. La
+   implementación era limpia y completa en lo esencial (1 cajero
+   biz_market). Adopté el trabajo en vez de sobreescribir y añadí:
+   (1) gate por negocio locked (cajero oculto hasta
+   business_unlocked), (2) 2 cajeros más (BIZ-2/3), (3) fix de
+   timing en try_hire. Lección ACCIONABLE: SIEMPRE `git status` +
+   leer untracked antes de write; adoptar WIP concurrente si es
+   limpio en vez de sobreescribir.
+2. **Bug de timing call_deferred vs contratación en _ready**:
+   main.gd DEVIN_SMOKE contrata cajeros en _ready, pero
+   cashier._resolve_target_shelves es call_deferred (corre después
+   de _ready). Sin fix, try_hire marcaba _hired=true pero
+   _target_shelves vacío → has_cashier no se seteaba → auto-collect
+   no funcionaba en smoke. Fix: try_hire resuelve shelves sincrónico
+   si _target_shelves.is_empty(). Lección: cualquier API pública
+   llamada desde _ready de otro nodo no puede depender de
+   call_deferred del target. Exponer resolve sincrónico como
+   fallback.
 
+## Ronda 14 — iter 1 (2026-07-05 08:33)
+
+### Resumen
+- Items completados Y commiteados (pending commit): 3 — UPG-1, UPG-2,
+  UPG-3 (3 upgrades S en 1 iteración). Capa 4 ahora 4/8 (AUTO-1 +
+  UPG-1/2/3; quedan AUTO-2, UPG-4/5, EMP-1).
+- Headless run OK, Export HTML5 OK (index.pck 97KB, +9KB vs r13).
+  MVP jugable en navegador con 3 pads de upgrade verdes pulsando
+  (speed $80, carry $120, shelf_cap $150) escalando precio geométrico.
+
+### Lecciones técnicas
+1. **UpgradePad reutilizable con match por tipo escala para N
+   upgrades**: 1 script + 1 escena + N instancias en Main.tscn con
+   upgrade_type/base_price distintos. El patrón "pad + nivel + precio
+   escalado + _apply_effect por tipo" es el mismo que UnlockPad/
+   Cashier pero con estado "nivel" en vez de "done/hired". UPG-4/5
+   solo requieren añadir un case al match (cashier_speed reduce
+   browse_time, production reduce production_time). Origen: diseño
+   UPG-1/2/3 + verificación smoke (3 efectos distintos en 1 script).
+2. **Meta base_move_speed/base_carry_capacity/base_capacity hace los
+   upgrades idempotentes**: en vez de `move_speed += 30` (drift si se
+   compra 2 veces), guardo el valor base en meta y reconstruyo
+   `base * 1.12^nivel` cada compra. Así el nivel es la fuente de
+   verdad y recomprar no acumula error. Aplica a cualquier upgrade
+   acumulativo. Origen: implementación speed/carry/shelf_cap.
+3. **_resolve_player por World.get_children() es robusto sin grupo
+   "players"**: el Player no está en grupo "players" (Player.tscn no
+   lo añade). El fallback itera los hijos del World (padre del pad)
+   buscando has_method("add_carried"). Funciona en headless y en
+   juego real. Evita rework de Player.tscn para añadir grupo. Origen:
+   smoke headless speed/carry aplicados correctamente sin grupo.
+4. **Forward-compat con SAVE-1 vía has_method guard**: UpgradePad
+   llama `GameManager.set_upgrade_level` solo si
+   `GameManager.has_method("set_upgrade_level")`. Hoy no existe
+   (SAVE-1 pendiente), pero cuando se implemente, los upgrades se
+   persistirán sin tocar upgrade_pad.gd. Patrón reutilizable para
+   cualquier feature que anticipe SAVE-1. Origen: diseño UPG + revisión
+   game_manager.gd (sin set_upgrade_level).
+
+### Lecciones de diseño
+1. **3 upgrades visibles dan 3 metas cercanas escalonadas**: $80
+   (speed) → $120 (carry) → $150 (shelf_cap). El jugador ve 3 pads
+   verdes pulsando con precios distintos — siempre hay 1-2
+   alcanzables. Cumple §32 "desbloqueo constante" y §26 "cada 10s
+   pasa algo" (comprar un upgrade es un micro-logro). El precio
+   geométrico (×1.6/nivel) hace que cada nivel sea una meta un poco
+   más grande sin ser inalcanzable.
+2. **Los upgrades conectan al loop sin romper el balance**: speed →
+   menos tiempo entre pickup y shelf → más ventas/min. carry → menos
+   viajes → más eficiencia. shelf_cap → menos reposiciones → más
+   tiempo para otras acciones. Cada upgrade amplifica el loop sin
+   automatizarlo (eso es AUTO-2). Cumple §32 "automatización
+   progresiva" en su fase de "mejoro yo" antes de "trabaja por mí".
+
+### Lecciones de proceso
+1. **"devin huérfano concurrente" recurre en r14 (4ta ronda seguida
+   con conflicto)**: al iniciar, upgrade_pad.gd y UpgradePad.tscn YA
+   habían sido escritos por una sesión concurrente con un diseño
+   DISTINTO al mío (upgrade_label/price_multiplier/effect_per_level,
+   LevelLabel, try_purchase, GameManager.set_upgrade_level sin guard,
+   get_first_node_in_group("player") sin grupo). Main.tscn y main.gd
+   eran mi versión (upgrade_name/price_growth, try_buy). La versión
+   concurrente tenía bugs reales: crash en GameManager.set_upgrade_level
+   (método inexistente), player no resuelto (grupo "player" no existe),
+   mismatch de property names con Main.tscn. Fix: reconciliación
+   (LEARNINGS r12 #2) — adopté el LevelLabel del scene concurrente (UX
+   mejor) pero reescribí el script para ser self-consistent. Lección
+   ACCIONABLE: cuando el WIP concurrente tiene bugs reales (no solo
+   estilo), reescribir el script pero preservar los nodos de escena
+   útiles (LevelLabel). NO adoptar bugs por "no sobreescribir".
+2. **Reconciliación selectiva > adopción ciega > sobreescribir**:
+   r13 adoptó el WIP concurrente ciegamente (era limpio). r14 no
+   podía adoptar ciegamente (tenía bugs) pero tampoco sobreescribir
+   (LevelLabel era bueno). La reconciliación selectiva (preservar
+   nodos útiles, reescribir script buggy) fue el camino correcto.
+   Lección general: leer el WIP concurrente, evaluar calidad, y
+   decidir por componente (script vs escena vs Main.tscn) no por
+   archivo entero.
+
+
+## Ronda 14 — iter 1 (2026-07-05 08:39)
+
+- **"devin huérfano concurrente" ahora es RACE CONDITION sobre el
+  mismo archivo**: r14 encontró upgrade_pad.gd/UpgradePad.tscn/Main.tscn/
+  main.gd YA modificados por una sesión concurrente, PERO esta vez la
+  sesión concurrente y la mía escribieron upgrade_pad.gd casi
+  simultáneamente con APIs distintas (try_buy vs try_purchase,
+  upgrade_name vs upgrade_label, price_growth vs price_multiplier).
+  Mi primera write creó mi versión; al leer de vuelta para
+  verificación, encontré la versión concurrente (try_buy) — había
+  sobreescrito la mía. Fix: adopté la versión concurrente (su patrón
+  base-meta es más robusto), la extendí con cashier_speed + production,
+  y alineé Main.tscn/main.gd a su API. Lección: cuando hay sesión
+  concurrente, RE-LEER el archivo inmediatamente antes de cada edit
+  (puede haber cambiado desde tu último read), y preferir adoptar +
+  extender sobre reescribir. Origen: grep try_purchase devolvió "No
+  matches" en upgrade_pad.gd que yo había escrito.
+- **Patrón base-meta para upgrades escalados > patrón incremental**:
+  la versión concurrente usa `if not p.has_meta("base_X"): p.set_meta
+  ("base_X", p.get("X"))` y recompute `base * factor^level` en cada
+  compra. Esto es robusto ante múltiples pads del mismo tipo y
+  recompras. Mi versión original hacía `p.X += effect_per_level`
+  (incremental), que drifta si el base cambia o si se aplica dos
+  veces. Adoptar el base-meta fue correcto. Generalizar a futuros
+  upgrades (UPG-6+).
+- **client.gd compraba instantáneamente (sin browse_time)**: bug
+  latente desde LOOP-5 — _do_buy se llamaba el primer frame con
+  has_stock(), sin delay. Esto hacía UPG-4 (cashier_speed) inútil.
+  Fix: @export var browse_time=0.5 + gate `_wait_time >= browse_time`
+  antes de _do_buy. Side effect: browse más natural. Lección: al
+  diseñar upgrades que afectan "velocidad de X", verificar que X
+  tenga un delay/timeout real que el upgrade pueda reducir.
+- **5 upgrades S en 1 iteración es viable cuando comparten 1 script**:
+  UPG-1..5 son 5 configuraciones de un solo UpgradePad (tipo + precio
+  + posición). El costo marginal de añadir cashier_speed y production
+  (2 tipos nuevos) fue ~15 líneas en _apply_effect + 2 nodos en
+  Main.tscn. No forzar 5 items si son features distintas, pero 5
+  configs de 1 feature sí. Origen: smoke mostró los 5 a nivel 2 en
+  una sola pasada.
+- **GameManager como registro de upgrades (forward-compat SAVE-1)**:
+  set_upgrade_level/get_upgrade_level + signal upgrade_purchased.
+  UpgradePad registra su nivel al comprar; ClientSpawner lee
+  cashier_speed level al spawnear. Esto desacopla el pad del consumidor
+  del efecto y prepara el save (SAVE-1 solo necesita persistir
+  GameManager.upgrades dict). Reutilizar este patrón para futuros
+  upgrades cross-nodo.

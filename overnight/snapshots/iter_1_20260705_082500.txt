@@ -1,0 +1,117 @@
+# Snapshot — Iteración 1 (ronda 13)
+Fecha: 2026-07-05 08:25
+Item(s) trabajados: AUTO-1
+Estado: completado
+
+Fase actual: A (construyendo MVP)
+Justificación: capa 3 cerrada en r12. Capa 4 (automatización) es la
+siguiente. AUTO-1 (empleado cajero) es la primera automatización del
+juego — la transición "yo trabajo → mi imperio trabaja por mí" que
+engancha a mediano plazo (BLUEPRINT §32 "automatización progresiva").
+Siguiente: AUTO-2 (reponedor) o UPG-1..5 (upgrades S, más rápidos).
+
+## Cambios
+- scripts/game/cashier.gd (NUEVO, adoptado de sesión concurrente +
+  pulido): Cashier Area2D. @export target_business_id, hire_price,
+  cashier_name. _resolve_target_shelves (call_deferred) escanea hijos
+  del World buscando el Business con business_id matching y guarda
+  sus shelves en _target_shelves + ref al Business en _target_business.
+  try_hire() (API pública para smoke headless): gasta cash via
+  Economy.spend_cash, marca _hired, _apply_state. FIX de timing: si
+  _target_shelves está vacío (call_deferred pendiente), resuelve
+  sincrónico antes de aplicar estado — sin esto, contratar en
+  main._ready (DEVIN_SMOKE) no marcaba ninguna shelf. _apply_state:
+  setea has_cashier en cada shelf objetivo; GATE por negocio locked:
+  si _target_business.is_locked() y no hired → visible=false +
+  monitoring=false (cajero no disponible en negocio cerrado); escucha
+  business_unlocked del target para re-mostrar el pad al desbloquear.
+  Pulso azul loop para llamar la atención (meta cercana visible). Pop
+  táctil al contratar. NO reusa GameManager.unlock_zone (no
+  interfere con MissionGuide que escucha zone_unlocked para sus
+  beats). Duck-typing para player (has_method add_carried).
+- scenes/Cashier.tscn (NUEVO): Area2D + Body ColorRect 64x64 azul +
+  PriceLabel + PromptLabel + AreaShape 80x80. Conexiones
+  body_entered/exited.
+- scripts/game/shelf.gd (modificado): añadida var has_cashier: bool
+  + signal auto_collected (no usada aún, reservada para JUICE) +
+  método has_cashier_service() -> bool (has_cashier and not locked).
+  _update_visual sin cambios.
+- scripts/game/client.gd (modificado): _do_buy ahora bifurca: si
+  target_shelf.has_cashier_service() → Economy.add_cash(total) directo
+  (sin MoneyDrop, print "cashier auto-collected $N"), else →
+  _spawn_money_drop (comportamiento LOOP-5/6 intacto). emit_signal
+  bought(total) en ambos caminos. Pop táctil del body al comprar
+  intacto.
+- scenes/Main.tscn (modificado): añadidas 3 instancias de Cashier:
+  CashierBIZ1 (-120,60) biz_market $100, CashierBIZ2 (240,-100)
+  biz_perfume $200, CashierBIZ3 (-280,260) biz_snacks $150.
+  ext_resource Cashier.tscn (id 12). load_steps=13.
+- scripts/game/main.gd (modificado): boot report añade
+  "Cashiers=%d hired=%d" (grupo "cashiers"). DEVIN_SMOKE: tras
+  desbloquear zonas, contrata TODOS los cajeros no hired via
+  try_hire() (respeta spend_cash) para validar cobro automático.
+- ROADMAP.md: AUTO-1 marcado [x] y movido a Completados con detalle
+  final (3 cajeros + gate por negocio locked).
+
+## Verificación
+- Headless run: OK
+  `godot --headless --quit-after 60`:
+    [Business] biz_market ready, locked=false zone=
+    [Business] biz_perfume ready, locked=true zone=zone_perfume
+    [Business] biz_snacks ready, locked=true zone=zone_snacks
+    [Factory] biz_factory ready, locked=true zone=zone_factory
+    [Main] Businesses=5 locked=4
+    [Main] Factory=true Warehouse=true
+    [Main] Active shelves=1/4
+    [Main] ClientSpawner=true
+    [Main] HUD=true MissionGuide=true UnlockPads=5
+    [Main] Cashiers=3 hired=0
+  3 cajeros cargan sin crash. BIZ-2/3 cashiers ocultos (negocio
+  locked) — visible=false gate funciona.
+- Export HTML5: OK
+  `godot --headless --export-release "HTML5" exports/html5/index.html`
+  genera index.html + index.js + index.pck (88KB, +7KB vs r12) +
+  index.wasm (35MB) sin errores. cashier.gd.remap incluido en .pck.
+- Smoke del item: OK
+  `DEVIN_SMOKE=1 godot --headless --quit-after 8000`:
+    [Main] DEVIN_SMOKE: forced unlock zone=zone_perfume
+    [Main] DEVIN_SMOKE: forced unlock zone=zone_snacks
+    [Cashier] contratado para biz_market por $100
+    [Cashier] contratado para biz_perfume por $200
+    [Cashier] contratado para biz_snacks por $150
+    [Client] bought 1 unit(s) from Shelf, cashier auto-collected $5
+    [Client] bought 1 unit(s) from Shelf, cashier auto-collected $5
+    ... (múltiples compras auto-colectadas)
+  Los 3 cajeros se contratan (try_hire respeta spend_cash: $100+$200+
+  $150=$450 de los $2000 del smoke). Los clientes compran y el dinero
+  va directo a Economy (Economy.add_cash) — NO se spawnean MoneyDrop
+  en shelves con cajero. El loop está conectado: cliente → compra →
+  cajero cobra → Economy.sube → HUD refresca (cash_changed). El
+  camino sin cajero (MoneyDrop al piso) se preserva para negocios
+  sin contratar (código else intacto, verificado en LOOP-5/6).
+
+## Próximo item sugerido
+UPG-1 — Upgrade de velocidad del jugador (capa 4, S). Es el upgrade
+más barato de implementar (un pad que aplica un multiplicador a
+player.speed) y se siente inmediatamente al jugar. Alternativa:
+AUTO-2 (reponedor, M) si se prefiere seguir con automatización antes
+de upgrades. Recomendación: hacer 2-3 upgrades S (UPG-1/2/3) en la
+próxima iteración — son S y suman variedad de progresión visible.
+
+## Problemas encontrados
+- "devin huérfano concurrente" recurre en r13 (LEARNINGS r12 lección
+  confirmada): al iniciar, cashier.gd/Cashier.tscn YA existían como
+  untracked WIP de una sesión concurrente, con Main.tscn/client.gd/
+  main.gd/shelf.gd modificados. La implementación era limpia y
+  completa en lo esencial. Adopté el trabajo en vez de sobreescribir
+  y añadí: (1) gate por negocio locked (cajero oculto hasta
+  business_unlocked), (2) 2 cajeros más (BIZ-2/3), (3) fix de timing
+  en try_hire (resolve sincrónico si call_deferred pendiente). NO se
+  perdió trabajo de la otra sesión — se integró y pulió.
+- Bug de timing detectado: main.gd DEVIN_SMOKE contrata cajeros en
+  _ready, pero cashier._resolve_target_shelves es call_deferred (corre
+  después de _ready). Sin el fix, try_hire marcaba _hired=true pero
+  _target_shelves estaba vacío → has_cashier no se seteaba en ninguna
+  shelf → auto-collect no funcionaba. Fix: try_hire resuelve shelves
+  sincrónico si _target_shelves.is_empty(). Verificado: smoke ahora
+  muestra "cashier auto-collected $5" correctamente.

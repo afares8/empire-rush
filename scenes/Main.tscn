@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://main_scene_ter"]
+[gd_scene load_steps=14 format=3 uid="uid://main_scene_ter"]
 
 [ext_resource type="Script" path="res://scripts/game/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2_player"]
@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" path="res://scenes/Factory.tscn" id="10_factory"]
 [ext_resource type="PackedScene" path="res://scenes/Warehouse.tscn" id="11_wh"]
 [ext_resource type="PackedScene" path="res://scenes/Cashier.tscn" id="12_cash"]
+[ext_resource type="PackedScene" path="res://scenes/UpgradePad.tscn" id="13_upg"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -97,6 +98,46 @@ position = Vector2(-280, 260)
 target_business_id = "biz_snacks"
 hire_price = 150.0
 cashier_name = "Cajero del Mini Market"
+
+[node name="UpgradeSpeed" parent="World" instance=ExtResource("13_upg")]
+position = Vector2(80, 100)
+upgrade_type = "speed"
+upgrade_name = "Velocidad"
+base_price = 80.0
+max_level = 5
+price_growth = 1.6
+
+[node name="UpgradeCarry" parent="World" instance=ExtResource("13_upg")]
+position = Vector2(200, 100)
+upgrade_type = "carry"
+upgrade_name = "Capacidad"
+base_price = 120.0
+max_level = 5
+price_growth = 1.6
+
+[node name="UpgradeShelfCap" parent="World" instance=ExtResource("13_upg")]
+position = Vector2(-80, 200)
+upgrade_type = "shelf_cap"
+upgrade_name = "Estante +"
+base_price = 150.0
+max_level = 5
+price_growth = 1.6
+
+[node name="UpgradeCashierSpeed" parent="World" instance=ExtResource("13_upg")]
+position = Vector2(320, 60)
+upgrade_type = "cashier_speed"
+upgrade_name = "Caja rapida"
+base_price = 180.0
+max_level = 5
+price_growth = 1.7
+
+[node name="UpgradeProduction" parent="World" instance=ExtResource("13_upg")]
+position = Vector2(-440, -160)
+upgrade_type = "production"
+upgrade_name = "Produccion"
+base_price = 200.0
+max_level = 5
+price_growth = 1.7
 
 [node name="ClientSpawner" type="Node2D" parent="World"]
 position = Vector2(0, 0)
