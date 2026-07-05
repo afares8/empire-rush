@@ -5,7 +5,7 @@
 [sub_resource type="RectangleShape2D" id="rect_area"]
 size = Vector2(80, 80)
 
-[node name="Shelf" type="Area2D"]
+[node name="Shelf" type="Area2D" groups=["shelves"]]
 script = ExtResource("1_shelf")
 
 [node name="Body" type="ColorRect" parent="."]
