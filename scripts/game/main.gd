@@ -23,6 +23,13 @@ func _ready() -> void:
 	# Verificar spawner de clientes cargado (loop base, LOOP-5).
 	var spawner: Node = get_node_or_null("World/ClientSpawner")
 	print("[Main] ClientSpawner=%s shelves_group=%d" % [spawner != null, get_tree().get_nodes_in_group("shelves").size()])
+	# Verificar HUD + MissionGuide + pads (LOOP-7/8/9).
+	var hud: Node = get_node_or_null("HUD")
+	var guide: Node = get_node_or_null("MissionGuide")
+	var pad_a: Node = get_node_or_null("World/UnlockPadA")
+	var pad_b: Node = get_node_or_null("World/UnlockPadB")
+	var pad_count: int = int(pad_a != null) + int(pad_b != null)
+	print("[Main] HUD=%s MissionGuide=%s UnlockPads=%d" % [hud != null, guide != null, pad_count])
 	# Debug smoke: pre-llena estantes para probar el ciclo de clientes
 	# sin requerir input del jugador. Activado por env var DEVIN_SMOKE=1.
 	if OS.get_environment("DEVIN_SMOKE") == "1":
@@ -31,6 +38,12 @@ func _ready() -> void:
 				s.stock = s.capacity
 				s.emit_signal("stock_changed", s.stock)
 		print("[Main] DEVIN_SMOKE: shelves pre-filled")
+		# Smoke del pad: dar cash y desbloquear el primer pad.
+		if Economy:
+			Economy.add_cash(100.0)
+		if pad_a and pad_a.has_method("try_unlock"):
+			var ok: bool = pad_a.try_unlock()
+			print("[Main] DEVIN_SMOKE: pad unlock ok=%s zone=%s" % [ok, pad_a.zone_id if "zone_id" in pad_a else "?"])
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:

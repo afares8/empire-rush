@@ -240,3 +240,36 @@
    headless pero crashean en navegador). Origen: 5 rondas sin
    export HTML5.
 
+## Ronda 8 — iter 1 (2026-07-05 06:14)
+
+- **`main.gd` sobrevivió al reset de r7 pero las escenas/scripts nuevos
+  no**: al iniciar r8, `scripts/ui/` no existía, `UnlockPad.tscn`/
+  `HUD.tscn` no existían, pero `main.gd` YA tenía la verificación de
+  HUD/MissionGuide/pads + el DEVIN_SMOKE pad test. Esto significa que
+  el reset del controller no es totalmente destructivo — parece que
+  solo borra archivos untracked NUEVOS, no los tracked modificados.
+  Hipótesis: `git reset --hard HEAD` revierte tracked files pero
+  `git clean -fd` borra untracked. Si main.gd fue editado (tracked),
+  el reset lo revirtió... pero NO fue revertido aquí. Posible que r7
+  sí commiteara main.gd en un WIP commit que luego se merged/kept.
+  Lección: hacer commit temprano de archivos tracked modificados
+  (main.gd, ROADMAP.md) para que sobrevivan resets; los archivos
+  NUEVOS son los vulnerables.
+- **`call_deferred` para setup de nodos que dependen de siblings**:
+  MissionGuide necesita el HUD (sibling bajo Main). En _ready el orden
+  de carga de siblings no está garantizado para @onready del otro.
+  `call_deferred("_setup")` corre después de que todo el árbol _ready
+  terminó → HUD ya está listo. Robusto y simple.
+- **Signal `money_collected` en Economy**: para distinguir "ingreso
+  por recoger dinero" de "gasto por desbloqueo" sin que MissionGuide
+  avance en el beat equivocado. add_cash(amount>0) emite money_collected;
+  spend_cash no. Reutilizable para JUICE-1 (fly-to-HUD solo al recoger).
+- **Capa 2 cerrada en 1 iteración (LOOP-7/8/9 juntos)**: a pesar de
+  que LOOP-7 es M, los 3 items comparten Main.tscn + verificación,
+  hacerlos juntos es más eficiente que 3 iter separadas (r7 ya lo
+  había demostrado antes del timeout). El timeout de 45 min sigue
+  siendo el riesgo — esta iter completó en ~10 min de trabajo real.
+- **Próximo bloqueante real: EXP-1 (export HTML5)**. Sin export, todo
+  el smoke sigue siendo headless y no valida feel. EXP-1 debe ser el
+  siguiente item P0 antes de capa 3.
+

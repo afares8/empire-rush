@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://main_scene_ter"]
+[gd_scene load_steps=10 format=3 uid="uid://main_scene_ter"]
 
 [ext_resource type="Script" path="res://scripts/game/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2_player"]
@@ -6,6 +6,9 @@
 [ext_resource type="PackedScene" path="res://scenes/Pickup.tscn" id="4_pickup"]
 [ext_resource type="PackedScene" path="res://scenes/Shelf.tscn" id="5_shelf"]
 [ext_resource type="Script" path="res://scripts/game/client_spawner.gd" id="6_spawner"]
+[ext_resource type="PackedScene" path="res://scenes/UnlockPad.tscn" id="7_pad"]
+[ext_resource type="PackedScene" path="res://scenes/HUD.tscn" id="8_hud"]
+[ext_resource type="Script" path="res://scripts/ui/mission_guide.gd" id="9_guide"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -34,6 +37,16 @@ position = Vector2(-60, -40)
 [node name="ShelfB" parent="World" instance=ExtResource("5_shelf")]
 position = Vector2(80, 60)
 
+[node name="UnlockPadA" parent="World" instance=ExtResource("7_pad")]
+position = Vector2(220, -160)
+zone_id = "zone_market"
+price = 50.0
+
+[node name="UnlockPadB" parent="World" instance=ExtResource("7_pad")]
+position = Vector2(-260, 180)
+zone_id = "zone_perfume"
+price = 120.0
+
 [node name="ClientSpawner" type="Node2D" parent="World"]
 position = Vector2(0, 0)
 script = ExtResource("6_spawner")
@@ -42,3 +55,8 @@ script = ExtResource("6_spawner")
 position = Vector2(0, 0)
 zoom = Vector2(1, 1)
 script = ExtResource("3_camera")
+
+[node name="HUD" parent="." instance=ExtResource("8_hud")]
+
+[node name="MissionGuide" type="Node" parent="."]
+script = ExtResource("9_guide")
