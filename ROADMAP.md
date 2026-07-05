@@ -107,15 +107,8 @@ lanzamiento.**
 
 ### Capa 3 — Contenido MVP (3 negocios + taller + almacén)
 
-> BIZ-1/2/3 completados en r11/i1 (ver `## Completados`). Quedan
-> BIZ-4 (taller) y BIZ-5 (almacén) para cerrar la capa 3.
-
-- [ ] **BIZ-4** (P1, M) — Mini taller/fábrica. Materia prima →
-  máquina → producto terminado → enviar a estante. Simple visual.
-  Criterio: la fábrica produce y abastece un estante.
-- [ ] **BIZ-5** (P1, S) — Mini almacén. Donde se acumula stock antes
-  de mover a estantes. Criterio: el almacén existe y se conecta al
-  loop.
+> Capa 3 CERRADA. BIZ-1/2/3 en r11/i1, BIZ-4/5 en r12/i1 (ver
+> `## Completados`). Siguiente: capa 4 (automatización + upgrades).
 
 ### Capa 4 — Automatización + upgrades + empleados
 
@@ -390,6 +383,25 @@ lanzamiento.**
   rotación, desbloqueable). BusinessBIZ3 en Main.tscn,
   start_locked=true, zone_snacks $400, tint naranja. Mismo patrón
   que BIZ-2. Headless OK, export HTML5 OK.
+- [x] **BIZ-4** (P1, M, r12/i1) — Mini taller/fábrica. `scripts/game/
+  factory.gd` (Factory Node2D: raw_stock auto-regen → máquina
+  convierte raw→output a ritmo production_time → output_stock →
+  jugador recoge con E del OutputArea y lleva al Shelf hijo; usa
+  wall-clock Time.get_ticks_msec para robustez headless LEARNINGS r5;
+  patrón unlock via GameManager.zone_unlocked igual que Business) +
+  `scenes/Factory.tscn` (Machine ColorRect + ProgressFill + RawPile +
+  OutputBody + OutputArea + Shelf + UnlockPad hijos). FactoryBIZ4 en
+  Main.tscn, start_locked=true, zone_factory $250, tint azul, camiseta
+  $5, production_time=3s, output_capacity=8. Headless: produce 8
+  unidades y para al llenar output. Export HTML5 OK.
+- [x] **BIZ-5** (P1, S, r12/i1) — Mini almacén. `scripts/game/
+  warehouse.gd` (Warehouse Area2D: stock/capacity, jugador deposita
+  con E si carried>0, recoge con E si carried==0 y stock>0; buffer de
+  logística; patrón unlock via GameManager.zone_unlocked + Pad hijo;
+  API deposit/withdraw para smoke headless) + `scenes/Warehouse.tscn`
+  (Body + StockLabel + AreaShape + Pad hijo). WarehouseBIZ5 en
+  Main.tscn, start_locked=true, zone_warehouse $600, capacity=20.
+  Headless: unlock + pre-fill stock=10 verificados. Export HTML5 OK.
 
 ---
 
