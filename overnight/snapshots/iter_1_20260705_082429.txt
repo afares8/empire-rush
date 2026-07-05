@@ -1,0 +1,94 @@
+# Snapshot — Iteración 1 (ronda 13)
+Fecha: 2026-07-05 08:24
+Item(s) trabajados: AUTO-1
+Estado: completado
+
+Fase actual: A (construyendo MVP)
+Justificación: capa 3 cerrada en r12. Capa 4 (automatización) es la
+siguiente. AUTO-1 (empleado cajero) es la primera automatización —
+la transición "yo trabajo → mi imperio trabaja por mí" que engancha
+a mediano plazo (BLUEPRINT §32 "automatización progresiva").
+
+## Cambios
+- scripts/game/cashier.gd (NUEVO): Cashier Area2D. Contratable en un
+  pad con precio. @export target_business_id + hire_price +
+  cashier_name. _ready añade al grupo "cashiers", resuelve los
+  shelves del negocio objetivo via call_deferred (escanea hijos del
+  World buscando business_id match), inicia pulso azul si no hired.
+  _is_player duck-typing (has_method add_carried). _on_body_entered/
+  exited conecta interact_pressed. try_hire(): si cash >= price y no
+  hired → spend_cash, _hired=true, _apply_state, emit hired. NO reusa
+  GameManager.unlock_zone (estado local _hired) para no interferir
+  con MissionGuide que escucha zone_unlocked. _apply_state setea
+  has_cashier=true en los shelves objetivo + body verde "CAJERO ✓" +
+  pop táctil. _start_pulse azul loop. API is_hired(), try_hire(),
+  get_target_shelves().
+- scenes/Cashier.tscn (NUEVO): Body ColorRect 64x64 + PriceLabel
+  "$100" + PromptLabel "E para contratar cajero" + AreaShape
+  RectangleShape2D 80x80. Connections body_entered/exited.
+- scripts/game/shelf.gd (modificado): añadido var has_cashier: bool
+  = false + método has_cashier_service() -> bool (has_cashier and
+  not locked). Comentario explicando AUTO-1.
+- scripts/game/client.gd (modificado): _do_buy ahora bifurca: si
+  target_shelf.has_cashier_service() → Economy.add_cash(total)
+  directo (sin MoneyDrop, print "cashier auto-collected $N"), else
+  → _spawn_money_drop como antes. emit_signal("bought", total) en
+  ambos casos. Comentario AUTO-1.
+- scenes/Main.tscn (modificado): load_steps 12→13, ext_resource
+  Cashier.tscn id 12. Nodo CashierBIZ1 en World en (-120, 60),
+  target_business_id="biz_market", hire_price=100.0,
+  cashier_name="Cajero del Puesto".
+- scripts/game/main.gd (modificado): boot report añade
+  "Cashiers=%d hired=%d" (cuenta nodos del grupo "cashiers" y
+  cuántos is_hired). DEVIN_SMOKE contrata todos los cajeros no
+  hired via try_hire() después de unlocks (valida cobro automático).
+
+## Verificación
+- Headless run: OK
+  `godot --headless --quit-after 60` (tras rm -rf .godot para
+  regenerar class_name cache, LEARNINGS r12 lección 3):
+    [Business] biz_market ready, locked=false zone=
+    [Business] biz_perfume ready, locked=true zone=zone_perfume
+    [Business] biz_snacks ready, locked=true zone=zone_snacks
+    [Factory] biz_factory ready, locked=true zone=zone_factory
+    [Main] Businesses=5 locked=4
+    [Main] Factory=true Warehouse=true
+    [Main] Active shelves=1/4
+    [Main] ClientSpawner=true
+    [Main] HUD=true MissionGuide=true UnlockPads=5
+    [Main] Cashiers=1 hired=0
+- Export HTML5: OK
+  `godot --headless --export-release "HTML5" exports/html5/index.html`
+  genera index.html + index.js + index.pck (88KB) + index.wasm (35MB)
+  sin errores. cashier.gd.remap incluido en .pck (grep cashier = 6
+  hits en index.pck).
+- Smoke del item: OK
+  `DEVIN_SMOKE=1 godot --headless --quit-after 15000`:
+    [Cashier] contratado para biz_market por $100
+    [Main] DEVIN_SMOKE: cashier hired for biz_market
+    [Spawner] spawned client -> shelf Shelf (clients=1)
+    ...
+    [Client] bought 1 unit(s) from Shelf, cashier auto-collected $5
+    [Client] bought 1 unit(s) from Shelf, cashier auto-collected $5
+    ... (múltiples compras auto-colectadas)
+  El cajero se contrata vía try_hire() (gasta $100 de los $2000 de
+  DEVIN_SMOKE). Los clientes que compran del shelf de biz_market
+  pagan directo al Economy ("cashier auto-collected $5") en vez de
+  soltar MoneyDrop al piso. El loop está conectado: cliente compra
+  → cajero cobra → Economy.add_cash → jugador ve cash subir sin
+  recoger. Los shelves sin cajero (perfume/snacks/factory) siguen
+  soltando MoneyDrop al piso (codigo path else preservado).
+
+## Próximo item sugerido
+AUTO-2 — Empleado reponedor (capa 4). Mueve producto del almacén a
+los estantes automáticamente. Cierra la segunda automatización: el
+jugador ya no necesita reponer a mano. Alternativa: UPG-1..5 (upgrades
+S, rápidos) para dar progresión de stats antes de más empleados.
+
+## Problemas encontrados
+- ninguno. El patrón Cashier (Area2D + pad + _apply_state sobre
+  shelves objetivo) reusa la arquitectura validada de Business/Pad
+  sin acoplarse a GameManager.unlock_zone, evitando interferir con
+  MissionGuide. La bifurcación en client._do_buy es mínima y
+  preserva el path sin-cajero (MoneyDrop) para los negocios no
+  cubiertos.

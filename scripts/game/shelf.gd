@@ -16,6 +16,9 @@ signal stocked(amount: int)
 var stock: int = 0
 var locked: bool = false
 var product_value: float = 5.0
+# AUTO-1: si true, un cajero cubre este estante y los clientes pagan
+# directo al Economy (sin soltar MoneyDrop al piso).
+var has_cashier: bool = false
 var _player_in_area: bool = false
 var _player: Node = null
 
@@ -84,6 +87,10 @@ func is_empty() -> bool:
 
 func has_stock() -> bool:
 	return stock > 0 and not locked
+
+# AUTO-1: indica si un cajero cubre este estante (cobro automático).
+func has_cashier_service() -> bool:
+	return has_cashier and not locked
 
 func _update_visual() -> void:
 	# Fill level: de rojo apagado (vacío) a verde brillante (lleno).

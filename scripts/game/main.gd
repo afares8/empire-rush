@@ -40,6 +40,13 @@ func _ready() -> void:
 	var guide: Node = get_node_or_null("MissionGuide")
 	var pads: int = get_tree().get_nodes_in_group("unlock_pads").size()
 	print("[Main] HUD=%s MissionGuide=%s UnlockPads=%d" % [hud != null, guide != null, pads])
+	# Verificar cajeros cargados (capa 4, AUTO-1).
+	var cashiers: Array = get_tree().get_nodes_in_group("cashiers")
+	var cashiers_hired: int = 0
+	for ch in cashiers:
+		if ch.has_method("is_hired") and ch.is_hired():
+			cashiers_hired += 1
+	print("[Main] Cashiers=%d hired=%d" % [cashiers.size(), cashiers_hired])
 	# Debug smoke: pre-llena estantes activos para probar el ciclo de
 	# clientes sin requerir input del jugador. Activado por env var
 	# DEVIN_SMOKE=1.
@@ -64,6 +71,11 @@ func _ready() -> void:
 			warehouse.stock = 10
 			warehouse.emit_signal("stock_changed", warehouse.stock)
 			print("[Main] DEVIN_SMOKE: warehouse pre-filled stock=10")
+		# Contratar el cajero del biz_market para validar cobro automático.
+		for ch in cashiers:
+			if ch.has_method("try_hire") and not ch.is_hired():
+				if ch.try_hire():
+					print("[Main] DEVIN_SMOKE: cashier hired for %s" % ch.target_business_id)
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
