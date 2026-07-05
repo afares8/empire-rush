@@ -378,3 +378,52 @@
    visual (1 iter). Con el fix del reset destructivo, la próxima
    ronda podría cerrar el MVP jugable en 1–2 ciclos de 5 rondas.
 
+## Ronda 11 — iter 1 (2026-07-05 08:02)
+
+### Resumen
+- Items completados Y commiteados (pending commit): 3 — BIZ-1, BIZ-2,
+  BIZ-3. Capa 3 ahora tiene 3/5 (quedan BIZ-4, BIZ-5).
+- El anti-patrón `Reset-FailedIteration` NO actuó esta ronda: el WIP
+  de r10 (business.gd, shelf.gd, client.gd, client_spawner.gd,
+  Business.tscn) sobrevivió como untracked/modified y era funcional.
+  Solo faltaba integrar en Main.tscn + actualizar main.gd.
+- Headless run OK, Export HTML5 OK. MVP jugable en navegador con 3
+  negocios (1 unlocked + 2 desbloqueables).
+
+### Lecciones técnicas
+1. **El WIP untracked de r10 sobrevivió al reset**: confirmado que
+   `git reset --hard HEAD` NO borra untracked, solo revierte tracked.
+   `git clean -fd` sí los borraría, pero el controller no lo corrió
+   entre r10 y r11. Hipótesis r8 (lección r8 #1) confirmada: archivos
+   NUEVOS untracked sobreviven si el controller no hace `git clean`.
+   Fix estratégico: commitear WIP temprano, pero si no, los untracked
+   son resilientes.
+2. **El patrón Business escala para 3 negocios en 1 iteración**:
+   confirmado r10 lección técnica #1. Business.tscn (Pickup+Shelf+
+   UnlockPad) + business.gd (state machine locked/unlocked via
+   GameManager.zone_unlocked) = 1 escena + 1 script reutilizable
+   para N negocios. BIZ-4/5 pueden seguir el mismo patrón (con
+   máquina/almacén como hijos extra).
+3. **`set_deferred("monitoring", bool)` desactiva Area2D detection**:
+   para apagar pickups locked sin remover del árbol. Más limpio que
+   remove_from_group. body_entered no fire cuando monitoring=false.
+4. **`product_value` vive en Shelf, no en Client**: el cliente lo
+   lee del estante al comprar (`shelf.product_value`). Así cada
+   negocio tiene su precio sin tocar el spawner. Conexión limpia:
+   Business._apply_state → shelf.product_value → client._do_buy.
+
+### Lecciones de diseño
+1. **3 negocios desbloqueables dan meta cercana visible**: BIZ-2
+   ($120) y BIZ-3 ($400) son pads amarillos pulsando. El jugador
+   ve "invierte para crecer" con 2 metas escalonadas. Cumple §32
+   "desbloqueo constante" mejor que 1 solo negocio.
+2. **Tint por negocio distingue visualmente sin assets**: BIZ-1
+   verde, BIZ-2 rosa, BIZ-3 naranja. Placeholders ColorRect pero
+   cada negocio se ve distinto. Cumple §26 "cada 5min cambia
+   visualmente" a escala pequeña.
+3. **BIZ-3 snacks $3 = alta rotación baja margen**: el diseño
+   BLUEPRINT §19 pide 3 productos con perfiles distintos. Camiseta
+   $5 (medio), perfume $15 (alto margen), snack $3 (bajo, volumen).
+   El balance real se ajusta en POLISH-6; por ahora los precios
+   dan variedad táctil.
+
